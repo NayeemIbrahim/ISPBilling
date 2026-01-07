@@ -25,5 +25,10 @@ require_once __DIR__ . '/../config/database.php';
 // Load Helpers
 require_once __DIR__ . '/../app/Core/Helpers.php';
 
+// Start Session
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Start App
 $app = new App\Core\App();

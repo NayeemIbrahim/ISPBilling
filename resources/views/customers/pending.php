@@ -187,7 +187,7 @@
                                 <td><?= $customer['mobile_no'] ?></td>
                                 <td><?= $customer['area'] ?></td>
                                 <td><?= $customer['package_name'] ?></td>
-                                <td><?= $customer['created_at'] ? date('m/d/Y', strtotime($customer['created_at'])) : '-' ?>
+                                <td><?= $customer['created_at'] ? date('d/m/Y', strtotime($customer['created_at'])) : '-' ?>
                                 </td>
                                 <td><span style="color:orange; font-weight:bold;">Pending</span></td>
                                 <td>

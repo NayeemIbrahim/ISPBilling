@@ -66,9 +66,12 @@
                         <option value="Static">Static</option>
                     </select>
                 </div>
-                <div class="form-group"><label>Connection Date</label><input type="date" name="connection_date"></div>
+                <div class="form-group"><label>Connection Date</label><input type="text" name="connection_date"
+                        class="date-picker" placeholder="DD/MM/YYYY">
+                </div>
                 <div class="form-group"><label>Expire Date</label><input type="text" name="expire_date"
-                        placeholder="dd/mm/yyyy" onfocus="handleDateFocus(this)" onblur="handleDateBlur(this)"></div>
+                        class="date-picker" placeholder="DD/MM/YYYY">
+                </div>
                 <div class="form-group">
                     <label>Auto Temporary Disable</label>
                     <select name="auto_disable">
@@ -237,15 +240,7 @@
         const data = Object.fromEntries(formData.entries());
 
         try {
-            // Convert date formats if needed (dd/mm/yyyy -> yyyy-mm-dd)
-            ['expire_date', 'connection_date'].forEach(field => {
-                if (data[field] && data[field].includes('/')) {
-                    const parts = data[field].split('/');
-                    if (parts.length === 3) {
-                        data[field] = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                    }
-                }
-            });
+            // Date fields are now handled by Flatpickr altInput (sends Y-m-d)
 
             // Note: URL structure /customer/store
             const response = await fetch('<?= url("customer/store") ?>', {
@@ -269,24 +264,6 @@
 
 <script>
     let previousExtraDays = 0;
-
-    function handleDateFocus(input) {
-        input.type = 'date';
-        // Convert dd/mm/yyyy to yyyy-mm-dd
-        if (input.value && input.value.includes('/')) {
-            const parts = input.value.split('/');
-            input.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-    }
-
-    function handleDateBlur(input) {
-        input.type = 'text';
-        // Convert yyyy-mm-dd to dd/mm/yyyy
-        if (input.value && input.value.includes('-')) {
-            const parts = input.value.split('-');
-            input.value = `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
-    }
 
     function toggleExtraDayApply() {
         const extraDaysSelect = document.getElementById('extra_days_create');

@@ -341,8 +341,9 @@
                     <table class="form-table">
                         <tr>
                             <td class="label-cell">Conn Date</td>
-                            <td class="input-cell"><input type="date" class="editable-input" name="connection_date"
-                                    value="<?= $c['connection_date'] ?>"></td>
+                            <td class="input-cell"><input type="text" class="editable-input date-picker" name="connection_date"
+                                    value="<?= $c['connection_date'] ? date('Y-m-d', strtotime($c['connection_date'])) : '' ?>"
+                                    placeholder="DD/MM/YYYY"></td>
                         </tr>
                         <tr>
                             <td class="label-cell">Package</td>
@@ -392,9 +393,9 @@
                         </tr>
                         <tr>
                             <td class="label-cell">Expire Date</td>
-                            <td class="input-cell"><input type="text" class="editable-input" name="expire_date"
-                                    value="<?= $c['expire_date'] ? date('d/m/Y', strtotime($c['expire_date'])) : '' ?>" 
-                                    placeholder="dd/mm/yyyy" onfocus="handleDateFocus(this)" onblur="handleDateBlur(this)"></td>
+                            <td class="input-cell"><input type="text" class="editable-input date-picker" name="expire_date"
+                                    value="<?= $c['expire_date'] ? date('Y-m-d', strtotime($c['expire_date'])) : '' ?>" 
+                                    placeholder="DD/MM/YYYY"></td>
                         </tr>
                         <tr>
                             <td class="label-cell">Auto Temp Disable</td>
@@ -531,22 +532,9 @@
         if(el) previousExtraDays = parseInt(el.value) || 0;
     });
 
-    function handleDateFocus(input) {
-        input.type = 'date';
-        // Convert dd/mm/yyyy to yyyy-mm-dd
-        if (input.value && input.value.includes('/')) {
-            const parts = input.value.split('/');
-            input.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
-        }
-    }
-
-    function handleDateBlur(input) {
-        input.type = 'text';
-        // Convert yyyy-mm-dd to dd/mm/yyyy
-        if (input.value && input.value.includes('-')) {
-            const parts = input.value.split('-');
-            input.value = `${parts[2]}/${parts[1]}/${parts[0]}`;
-        }
+    // Date field handlers
+    function initDatePicking() {
+        // No changes needed here, handled by global Flatpickr init
     }
 
     function toggleExtraDayShow() {
@@ -596,15 +584,7 @@
         const data = Object.fromEntries(formData.entries());
         const btn = this;
 
-        // Convert date formats if needed (dd/mm/yyyy -> yyyy-mm-dd)
-        ['expire_date', 'connection_date'].forEach(field => {
-            if (data[field] && data[field].includes('/')) {
-                const parts = data[field].split('/');
-                if (parts.length === 3) {
-                    data[field] = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                }
-            }
-        });
+        // Date fields are now handled by Flatpickr altInput (sends Y-m-d)
 
         btn.innerText = 'Updating...';
         btn.disabled = true;

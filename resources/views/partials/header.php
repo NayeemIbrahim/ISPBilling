@@ -19,6 +19,8 @@ $path = $data['path'] ?? '';
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Flatpickr -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 </head>
 
 <body>
@@ -54,6 +56,7 @@ $path = $data['path'] ?? '';
                 <a href="#">Collection</a>
                 <div class="dropdown-content">
                     <a href="<?= url('collection/amount') ?>">Amount Collection</a>
+                    <a href="<?= url('collection/edit') ?>">Edit Collection</a>
                     <a href="<?= url('report/collectionReport') ?>">Collection Report</a>
                 </div>
             </li>

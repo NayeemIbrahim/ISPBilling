@@ -59,7 +59,7 @@
                                     ?>
                                     <span style="color:<?= $color ?>; font-weight:bold;"><?= $statusBy ?></span>
                                 </td>
-                                <td><?= date('d M, Y h:i A', strtotime($complain['created_at'])) ?></td>
+                                <td><?= date('d/m/Y h:i A', strtotime($complain['created_at'])) ?></td>
                                 <td>
                                     <button class="btn-edit"
                                         onclick="window.location.href='<?= url('complain-list/edit/' . $complain['id']) ?>'">

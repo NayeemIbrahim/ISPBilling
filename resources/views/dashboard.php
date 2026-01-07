@@ -71,7 +71,7 @@
                             <td><?= $customer['full_name'] ?></td>
                             <td><?= $customer['mobile_no'] ?></td>
                             <td><?= $customer['area'] ?></td>
-                            <td><?= $customer['created_at'] ? date('m/d/Y', strtotime($customer['created_at'])) : '-' ?></td>
+                            <td><?= $customer['created_at'] ? date('d/m/Y', strtotime($customer['created_at'])) : '-' ?></td>
                             <td style="display:flex; gap:5px;">
                                 <a href="<?= url('customer/show/' . $customer['id']) ?>" class="btn-table">View</a>
                                 <form action="<?= url('customer/activate/' . $customer['id']) ?>" method="POST"

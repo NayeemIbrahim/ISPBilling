@@ -3,6 +3,19 @@
 <?php if (strpos($path ?? '', '/customer/search') !== false): ?>
     <script src="<?= asset('js/customer.js') ?>"></script>
 <?php endif; ?>
+<!-- Flatpickr -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        flatpickr(".date-picker", {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "d/m/Y",
+            allowInput: true,
+            placeholder: "DD/MM/YYYY"
+        });
+    });
+</script>
 </body>
 
 </html>

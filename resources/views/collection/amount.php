@@ -371,7 +371,7 @@
                 <div class="info-item"><label>PPPoE Username</label><span>${c.pppoe_name || "N/A"}</span></div>
                 <div class="info-item"><label>Billing Type</label><span>${c.billing_type || "Prepaid"}</span></div>
                 <div class="info-item full-width"><label>Address</label><span>${c.area || "N/A"}, House ${c.house_no || "N/A"}, ${c.district || "N/A"}</span></div>
-                <div class="info-item"><label>Current Expiry</label><span id="current-expiry-display">${c.expire_date || "N/A"}</span></div>
+                <div class="info-item"><label>Current Expiry</label><span id="current-expiry-display">${c.expire_date ? c.expire_date.split('-').reverse().join('/') : "N/A"}</span></div>
                 <div class="info-item"><label>Monthly Rent</label><span>${c.monthly_rent} TK</span></div>
                 <div class="info-item"><label>Total Payable</label><span>${c.total_amount} TK</span></div>
                 <div class="info-item"><label>Extra Days</label><span>${c.extra_days > 0 ? c.extra_days + " Days (" + c.extra_days_type + ")" : "None"}</span></div>
@@ -402,7 +402,7 @@
                         </div>
                         <div class="form-group">
                             <label>Next Expiry Date</label>
-                            <input type="date" name="next_expire_date" id="next-expire-date" class="form-control" required>
+                            <input type="text" name="next_expire_date" id="next-expire-date" class="form-control date-picker" placeholder="DD/MM/YYYY" required>
                         </div>
                         <div class="form-group" style="grid-column: span 2;">
                             <label>Internal Note</label>
@@ -413,6 +413,15 @@
                 </form>
             </div>
         `;
+
+            // Re-initialize Flatpickr for the new input
+            flatpickr("#next-expire-date", {
+                dateFormat: "Y-m-d",
+                altInput: true,
+                altFormat: "d/m/Y",
+                allowInput: true,
+                placeholder: "DD/MM/YYYY"
+            });
 
             const amountInput = document.getElementById("collect-amount");
             const expiryInput = document.getElementById("next-expire-date");
@@ -428,7 +437,14 @@
 
                 // Rule: If paid_amount < monthly_rent, date shouldn't change
                 if (paidAmount < monthlyRent) {
-                    expiryInput.value = baseDate.toISOString().split("T")[0];
+                    const yyyy = baseDate.getFullYear();
+                    const mm = String(baseDate.getMonth() + 1).padStart(2, '0');
+                    const dd = String(baseDate.getDate()).padStart(2, '0');
+                    if (expiryInput._flatpickr) {
+                        expiryInput._flatpickr.setDate(`${yyyy}-${mm}-${dd}`);
+                    } else {
+                        expiryInput.value = `${dd}/${mm}/${yyyy}`;
+                    }
                     return;
                 }
 
@@ -469,31 +485,16 @@
                 // OR set dd/mm/yyyy if type is text.
 
                 // Let's set the input type to text for display initially
-                expiryInput.type = 'text';
-                expiryInput.value = `${dd}/${mm}/${yyyy}`;
+                // Trigger Flatpickr update
+                if (expiryInput._flatpickr) {
+                    expiryInput._flatpickr.setDate(`${yyyy}-${mm}-${dd}`);
+                } else {
+                    expiryInput.value = `${dd}/${mm}/${yyyy}`;
+                }
             }
 
             updateNextExpire();
             amountInput.addEventListener("input", updateNextExpire);
-
-            // Add focus/blur handlers for the expiration input
-            expiryInput.onfocus = function () {
-                this.type = 'date';
-                // Convert current dd/mm/yyyy to yyyy-mm-dd for the date picker
-                const parts = this.value.split('/');
-                if (parts.length === 3) {
-                    this.value = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                }
-            };
-
-            expiryInput.onblur = function () {
-                this.type = 'text';
-                // Convert yyyy-mm-dd back to dd/mm/yyyy
-                if (this.value.includes('-')) {
-                    const parts = this.value.split('-');
-                    this.value = `${parts[2]}/${parts[1]}/${parts[0]}`;
-                }
-            };
 
             document.getElementById("pay-form").onsubmit = function (e) {
                 e.preventDefault();
@@ -503,15 +504,7 @@
 
                 const formData = new FormData(this);
 
-                // Fix date format for backend (dd/mm/yyyy -> yyyy-mm-dd)
-                const dateVal = formData.get('next_expire_date');
-                if (dateVal && dateVal.includes('/')) {
-                    const parts = dateVal.split('/');
-                    if (parts.length === 3) {
-                        const isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-                        formData.set('next_expire_date', isoDate);
-                    }
-                }
+                // Date fields are now handled by Flatpickr altInput (sends Y-m-d)
 
                 fetch("<?= url('collection/store') ?>", {
                     method: "POST",

@@ -95,6 +95,86 @@ class CollectionController extends Controller
         }
     }
 
+    public function edit()
+    {
+        $this->view('collection/edit', [
+            'title' => 'Edit Collection',
+            'path' => '/collection/edit'
+        ]);
+    }
+
+    public function getHistory($id)
+    {
+        header('Content-Type: application/json');
+
+        $sql = "SELECT c.*, e.name as collected_by_name 
+                FROM collections c 
+                LEFT JOIN employees e ON c.collected_by = e.id 
+                WHERE c.customer_id = ? 
+                ORDER BY c.collection_date DESC";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$id]);
+        $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        echo json_encode(['status' => 'success', 'data' => $history]);
+    }
+
+    public function deleteRecord()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $id = $_POST['id'];
+
+            try {
+                $this->db->beginTransaction();
+
+                // 1. Get the collection record info before deleting
+                $stmt = $this->db->prepare("SELECT * FROM collections WHERE id = ?");
+                $stmt->execute([$id]);
+                $col = $stmt->fetch(PDO::FETCH_ASSOC);
+
+                if (!$col)
+                    throw new \Exception("Record not found");
+
+                $customer_id = $col['customer_id'];
+                $amount = $col['amount'];
+
+                // 2. Delete the record
+                $delStmt = $this->db->prepare("DELETE FROM collections WHERE id = ?");
+                $delStmt->execute([$id]);
+
+                // 3. Revert customer balance (Increase due_amount by the deleted payment amount)
+                $updStmt = $this->db->prepare("UPDATE customers SET due_amount = due_amount + ? WHERE id = ?");
+                $updStmt->execute([$amount, $customer_id]);
+
+                // 4. Revert expire_date
+                // Fetch the NEW last collection's next_expire_date
+                $lastColStmt = $this->db->prepare("SELECT next_expire_date FROM collections WHERE customer_id = ? ORDER BY id DESC LIMIT 1");
+                $lastColStmt->execute([$customer_id]);
+                $lastCol = $lastColStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($lastCol) {
+                    $newExpire = $lastCol['next_expire_date'];
+                } else {
+                    // No collections left. Revert to connection_date or null?
+                    // Let's try to fetch connection_date
+                    $custStmt = $this->db->prepare("SELECT connection_date FROM customers WHERE id = ?");
+                    $custStmt->execute([$customer_id]);
+                    $cust = $custStmt->fetch(PDO::FETCH_ASSOC);
+                    $newExpire = $cust['connection_date'] ?? null;
+                }
+
+                $this->db->prepare("UPDATE customers SET expire_date = ? WHERE id = ?")->execute([$newExpire, $customer_id]);
+
+                $this->db->commit();
+                echo json_encode(['status' => 'success', 'message' => 'Record deleted and balance reverted.']);
+            } catch (\Exception $e) {
+                if ($this->db->inTransaction())
+                    $this->db->rollBack();
+                echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+            }
+        }
+    }
+
     public function store()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -105,26 +185,35 @@ class CollectionController extends Controller
             $next_expire_date = $_POST['next_expire_date'] ?? null;
             $note = $_POST['note'] ?? '';
 
+            // Auto-assign collector if logged in
+            $collected_by = $_SESSION['user_id'] ?? $_SESSION['employee_id'] ?? null;
+
             try {
                 $this->db->beginTransaction();
 
                 // 1. Insert Collection Record
-                $sql = "INSERT INTO collections (customer_id, amount, payment_method, invoice_no, next_expire_date, note) 
-                        VALUES (?, ?, ?, ?, ?, ?)";
+                $sql = "INSERT INTO collections (customer_id, amount, payment_method, invoice_no, next_expire_date, note, collected_by) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $this->db->prepare($sql);
-                $stmt->execute([$customer_id, $amount, $payment_method, $invoice_no, $next_expire_date, $note]);
+                $stmt->execute([$customer_id, $amount, $payment_method, $invoice_no, $next_expire_date, $note, $collected_by]);
 
-                // 2. Update Customer's Expire Date and potentially Status
-                $updateSql = "UPDATE customers SET expire_date = ?, status = 'active' WHERE id = ?";
+                // 2. Update Customer's Balance, Expire Date and Status
+                // Subtract amount from due_amount
+                $updateSql = "UPDATE customers SET 
+                                due_amount = due_amount - ?, 
+                                expire_date = ?, 
+                                status = 'active' 
+                              WHERE id = ?";
                 $updateStmt = $this->db->prepare($updateSql);
-                $updateStmt->execute([$next_expire_date, $customer_id]);
+                $updateStmt->execute([$amount, $next_expire_date, $customer_id]);
 
                 $this->db->commit();
 
                 header('Content-Type: application/json');
                 echo json_encode(['status' => 'success', 'message' => 'Collection successful']);
             } catch (\Exception $e) {
-                $this->db->rollBack();
+                if ($this->db->inTransaction())
+                    $this->db->rollBack();
                 header('Content-Type: application/json');
                 echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
             }
