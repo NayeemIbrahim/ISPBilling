@@ -67,10 +67,10 @@
                     </select>
                 </div>
                 <div class="form-group"><label>Connection Date</label><input type="text" name="connection_date"
-                        class="date-picker" placeholder="DD/MM/YYYY">
+                        class="date-picker" placeholder="DD/MM/YYYY" value="<?= date('Y-m-d') ?>">
                 </div>
                 <div class="form-group"><label>Expire Date</label><input type="text" name="expire_date"
-                        class="date-picker" placeholder="DD/MM/YYYY">
+                        class="date-picker" placeholder="DD/MM/YYYY" value="<?= date('Y-m-05', strtotime('first day of next month')) ?>">
                 </div>
                 <div class="form-group">
                     <label>Auto Temporary Disable</label>

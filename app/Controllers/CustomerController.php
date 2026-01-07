@@ -5,19 +5,31 @@ use App\Core\Controller;
 use Database;
 use PDO;
 
+/**
+ * CustomerController
+ * 
+ * Manages customer lifecycle including registration, profile updates, 
+ * activation, and search/filtering.
+ */
 class CustomerController extends Controller
 {
-    private $db;
-
+    /**
+     * CustomerController constructor.
+     */
     public function __construct()
     {
         $this->db = (new Database())->getConnection();
     }
 
+    /**
+     * List all customers with pagination, sorting, and filtering.
+     * 
+     * @return void
+     */
     public function index()
     {
         // 1. Pagination Settings
-        $limit = 20; // Default 20
+        $limit = 20;
         $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
         if ($page < 1)
             $page = 1;
@@ -32,39 +44,25 @@ class CustomerController extends Controller
         $where = [];
         $params = [];
 
-        // Search Query
         $q = $_GET['q'] ?? '';
         if ($q) {
             $where[] = "(LOWER(c.full_name) LIKE ? OR c.mobile_no LIKE ? OR LOWER(c.area) LIKE ? OR LOWER(c.payment_id) LIKE ? OR CONCAT(LOWER(COALESCE(ip.prefix_code,'')), c.id) LIKE ?)";
             $term = "%" . strtolower($q) . "%";
-            $params[] = $term; // name
-            $params[] = $term; // mobile
-            $params[] = $term; // area
-            $params[] = $term; // payment_id
-            $params[] = $term; // combined ID
+            $params = array_merge($params, [$term, $term, $term, $term, $term]);
         }
 
-        // Status Filter
         $statuses = $_GET['status'] ?? [];
-        // Ensure it's an array if passed
-        if (!is_array($statuses)) {
+        if (!is_array($statuses))
             $statuses = [$statuses];
-        }
-        // Filter out empty values
         $statuses = array_filter($statuses);
 
         if (!empty($statuses)) {
             $placeholders = implode(',', array_fill(0, count($statuses), '?'));
             $where[] = "c.status IN ($placeholders)";
-            foreach ($statuses as $s) {
-                $params[] = $s;
-            }
+            $params = array_merge($params, array_values($statuses));
         }
 
-        $whereSql = "";
-        if (!empty($where)) {
-            $whereSql = "WHERE " . implode(" AND ", $where);
-        }
+        $whereSql = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
 
         // 4. Get Total Count
         $joins = "LEFT JOIN packages p ON c.package_id = p.id LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id";
@@ -99,19 +97,17 @@ class CustomerController extends Controller
         ]);
     }
 
+    /**
+     * Show the create customer form.
+     * 
+     * @return void
+     */
     public function create()
     {
-        // Fetch employees for dropdown
         $employees = $this->db->query("SELECT id, name FROM employees ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-        // Fetch packages for dropdown
         $packages = $this->db->query("SELECT id, name, price FROM packages ORDER BY price ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-        // Fetch default prefix
         $prefixStmt = $this->db->query("SELECT prefix_code FROM id_prefixes WHERE is_default = TRUE LIMIT 1");
         $defaultPrefix = $prefixStmt->fetchColumn() ?: '';
-
-        // Fetch next ID (auto-increment)
         $nextIdStmt = $this->db->query("SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers'");
         $nextId = $nextIdStmt->fetchColumn() ?: 1;
 
@@ -125,14 +121,16 @@ class CustomerController extends Controller
         ]);
     }
 
-    // Handle Create (POST)
+    /**
+     * Handle Create Customer (POST).
+     * 
+     * @return void Sends JSON response.
+     */
     public function store()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $json = file_get_contents('php://input');
-            $data = json_decode($json, true);
-            if (!$data)
-                $data = $_POST;
+            $data = json_decode($json, true) ?: $_POST;
 
             $sql = "INSERT INTO customers (
                 full_name, email, identification_no, mobile_no, alt_mobile_no, professional_detail,
@@ -144,7 +142,6 @@ class CustomerController extends Controller
                 auto_disable, auto_disable_month, extra_days, extra_days_type
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
-            // Get default prefix id
             $prefixStmt = $this->db->query("SELECT id FROM id_prefixes WHERE is_default = TRUE LIMIT 1");
             $prefixId = $prefixStmt->fetchColumn();
 
@@ -209,15 +206,19 @@ class CustomerController extends Controller
             try {
                 $stmt = $this->db->prepare($sql);
                 $stmt->execute($values);
-                echo json_encode(['status' => 'success', 'message' => 'Created successfully']);
+                return $this->json(['status' => 'success', 'message' => 'Created successfully']);
             } catch (\Exception $e) {
-                http_response_code(500);
-                echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+                return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);
             }
         }
     }
 
-    // Handle Update
+    /**
+     * Handle Update Customer (POST).
+     * 
+     * @param int $id The customer ID.
+     * @return void Sends JSON response.
+     */
     public function update($id)
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -295,27 +296,33 @@ class CustomerController extends Controller
             try {
                 $stmt = $this->db->prepare($sql);
                 $stmt->execute($values);
-                echo json_encode(['status' => 'success', 'message' => 'Updated successfully']);
+                return $this->json(['status' => 'success', 'message' => 'Updated successfully']);
             } catch (\Exception $e) {
-                http_response_code(500);
-                echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+                return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);
             }
         }
     }
 
+    /**
+     * Delete a customer.
+     * 
+     * @param int $id The customer ID.
+     * @return void Redirects back.
+     */
     public function delete($id)
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $this->db->prepare("DELETE FROM customers WHERE id = ?");
             $stmt->execute([$id]);
-
-            // Redirect back to the referring page (e.g., pending or all customers)
-            $referer = $_SERVER['HTTP_REFERER'] ?? url('customer');
-            header('Location: ' . $referer);
-            exit;
+            return $this->redirect($_SERVER['HTTP_REFERER'] ?? '/customer');
         }
     }
 
+    /**
+     * Show the customer search view.
+     * 
+     * @return void
+     */
     public function search()
     {
         $this->view('customers/search', [
@@ -324,9 +331,14 @@ class CustomerController extends Controller
         ]);
     }
 
+    /**
+     * Show a specific customer profile.
+     * 
+     * @param int $id The customer ID.
+     * @return void
+     */
     public function show($id)
     {
-        // Join with packages to get package name
         $stmt = $this->db->prepare("SELECT c.*, p.name as package_name, ip.prefix_code 
                                     FROM customers c 
                                     LEFT JOIN packages p ON c.package_id = p.id 
@@ -336,14 +348,10 @@ class CustomerController extends Controller
         $customer = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$customer) {
-            echo "Customer not found";
-            return;
+            die("Customer not found");
         }
 
-        // Fetch employees for dropdown
         $employees = $this->db->query("SELECT id, name FROM employees ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-        // Fetch packages for dropdown
         $packages = $this->db->query("SELECT id, name, price FROM packages ORDER BY price ASC")->fetchAll(PDO::FETCH_ASSOC);
 
         $this->view('customers/show', [
@@ -355,6 +363,11 @@ class CustomerController extends Controller
         ]);
     }
 
+    /**
+     * AJAX Search/Filter customers.
+     * 
+     * @return void Sends JSON response.
+     */
     public function filter()
     {
         $query = $_GET['q'] ?? '';
@@ -375,28 +388,29 @@ class CustomerController extends Controller
             $stmt = $this->db->prepare($sql);
             $stmt->execute($params);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            echo json_encode(['status' => 'success', 'data' => $rows]);
+            return $this->json(['status' => 'success', 'data' => $rows]);
         } catch (\Exception $e) {
-            http_response_code(500);
-            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+            return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
+    /**
+     * List pending customers with pagination and search.
+     * 
+     * @return void
+     */
     public function pending()
     {
-        // 1. Pagination Settings
-        $limit = 20; // Updated from 15 to 20
+        $limit = 20;
         $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
         if ($page < 1)
             $page = 1;
         $offset = ($page - 1) * $limit;
 
-        // 2. Sorting Settings
         $allowedSortColumns = ['id', 'full_name', 'mobile_no', 'area', 'package_name', 'created_at'];
         $sort = isset($_GET['sort']) && in_array($_GET['sort'], $allowedSortColumns) ? $_GET['sort'] : 'id';
         $order = isset($_GET['order']) && strtoupper($_GET['order']) === 'ASC' ? 'ASC' : 'DESC';
 
-        // 3. Search & Filter Logic
         $where = ["c.status = 'pending'"];
         $params = [];
         $joins = "LEFT JOIN packages p ON c.package_id = p.id LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id";
@@ -405,22 +419,16 @@ class CustomerController extends Controller
         if ($q) {
             $where[] = "(LOWER(c.full_name) LIKE ? OR c.mobile_no LIKE ? OR LOWER(c.area) LIKE ? OR CONCAT(LOWER(COALESCE(ip.prefix_code,'')), c.id) LIKE ?)";
             $term = "%" . strtolower($q) . "%";
-            $params[] = $term;
-            $params[] = $term;
-            $params[] = $term;
-            $params[] = $term;
+            $params = array_merge($params, [$term, $term, $term, $term]);
         }
 
         $whereSql = "WHERE " . implode(" AND ", $where);
-
-        // 4. Get Total Count for Pagination
         $countSql = "SELECT COUNT(*) FROM customers c $joins $whereSql";
         $countStmt = $this->db->prepare($countSql);
         $countStmt->execute($params);
         $totalRecords = $countStmt->fetchColumn();
         $totalPages = ceil($totalRecords / $limit);
 
-        // 5. Fetch Records
         $sql = "SELECT c.*, p.name as package_name, ip.prefix_code 
                 FROM customers c 
                 $joins
@@ -442,35 +450,41 @@ class CustomerController extends Controller
         ]);
     }
 
+    /**
+     * Activate a pending customer.
+     * 
+     * @param int $id The customer ID.
+     * @return void Redirects back.
+     */
     public function activate($id)
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $this->db->prepare("UPDATE customers SET status = 'active' WHERE id = ?");
             $stmt->execute([$id]);
-
-            // Redirect back to where the request came from
-            $referer = $_SERVER['HTTP_REFERER'] ?? url('dashboard');
-            header("Location: $referer");
-            exit;
+            return $this->redirect($_SERVER['HTTP_REFERER'] ?? '/dashboard');
         }
     }
 
+    /**
+     * Seed dummy data (For internal/dev use).
+     * 
+     * @return void Redirects to customer list.
+     */
     public function seed()
     {
-        // Get default prefix id
         $prefixStmt = $this->db->query("SELECT id FROM id_prefixes WHERE is_default = TRUE LIMIT 1");
         $prefixId = $prefixStmt->fetchColumn() ?: null;
 
         $dummy = [
-            ['Pending User 1', '01712345671', 'Dhaka', 'Pending', $prefixId],
-            ['Pending User 2', '01812345672', 'Ctg', 'Pending', $prefixId],
-            ['Active User 1', '01912345673', 'Sylhet', 'Active', $prefixId],
+            ['Pending User 1', '01712345671', 'Dhaka', 'pending', $prefixId],
+            ['Pending User 2', '01812345672', 'Ctg', 'pending', $prefixId],
+            ['Active User 1', '01912345673', 'Sylhet', 'active', $prefixId],
         ];
 
         $stmt = $this->db->prepare("INSERT INTO customers (full_name, mobile_no, area, status, prefix_id) VALUES (?, ?, ?, ?, ?)");
         foreach ($dummy as $d) {
             $stmt->execute($d);
         }
-        $this->redirect('/customer');
+        return $this->redirect('/customer');
     }
 }

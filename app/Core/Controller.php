@@ -1,21 +1,39 @@
 <?php
 namespace App\Core;
 
+/**
+ * Base Controller Class
+ * 
+ * Provides basic view rendering, redirection, and JSON response functionality for all controllers.
+ */
 class Controller
 {
+    protected $db;
 
-    // Load Model (Manual include for simplicity in this pattern)
+    /**
+     * Load a Model (Manual include for simple MVC pattern).
+     * 
+     * @param string $model The model class name.
+     * @return object An instance of the model.
+     */
     public function model($model)
     {
         require_once __DIR__ . '/../Models/' . $model . '.php';
         return new $model();
     }
 
-    // Load View
+    /**
+     * Render a view file with data.
+     * 
+     * @param string $view The path to the view file relative to resources/views/.
+     * @param array $data Associative array of data to extract into variables for the view.
+     */
     public function view($view, $data = [])
     {
         // Extract data array to variables
-        extract($data);
+        if (!empty($data)) {
+            extract($data);
+        }
 
         // Define path
         $viewPath = __DIR__ . '/../../resources/views/' . $view . '.php';
@@ -25,10 +43,13 @@ class Controller
         } else {
             die("View does not exist: " . $view);
         }
-
     }
 
-    // Redirect helper
+    /**
+     * Redirect to a specific URL or internal path.
+     * 
+     * @param string $url The target URL or relative path (e.g., 'dashboard').
+     */
     public function redirect($url)
     {
         // Check if url is full path or relative
@@ -40,5 +61,19 @@ class Controller
             header("Location: " . url($cleanUrl));
         }
         exit();
+    }
+
+    /**
+     * Send a standardized JSON response and exit.
+     * 
+     * @param mixed $data The data to encode.
+     * @param int $status The HTTP status code (default 200).
+     */
+    public function json($data, $status = 200)
+    {
+        http_response_code($status);
+        header('Content-Type: application/json');
+        echo json_encode($data);
+        exit;
     }
 }

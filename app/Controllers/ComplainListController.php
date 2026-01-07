@@ -5,16 +5,28 @@ use App\Core\Controller;
 use Database;
 use PDO;
 
+/**
+ * ComplainListController
+ * 
+ * Manages customer complaints, including creation, assignment to employees,
+ * and status tracking.
+ */
 class ComplainListController extends Controller
 {
-    private $db;
-
+    /**
+     * ComplainListController constructor.
+     */
     public function __construct()
     {
         $this->db = (new Database())->getConnection();
         $this->createTableIfNotExists();
     }
 
+    /**
+     * Ensures the customer_complains table exists.
+     * 
+     * @return void
+     */
     private function createTableIfNotExists()
     {
         $sql = "CREATE TABLE IF NOT EXISTS customer_complains (
@@ -32,6 +44,11 @@ class ComplainListController extends Controller
         $this->db->exec($sql);
     }
 
+    /**
+     * Display the list of all complaints.
+     * 
+     * @return void
+     */
     public function index()
     {
         // Fetch complaints with related data
@@ -56,6 +73,11 @@ class ComplainListController extends Controller
         ]);
     }
 
+    /**
+     * Show the form to create a new complaint.
+     * 
+     * @return void
+     */
     public function create()
     {
         // Fetch Complain Types
@@ -72,6 +94,11 @@ class ComplainListController extends Controller
         ]);
     }
 
+    /**
+     * Store a new complaint.
+     * 
+     * @return void Redirects back.
+     */
     public function store()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -95,15 +122,17 @@ class ComplainListController extends Controller
                 ]);
             }
 
-            header('Location: ' . url('complain-list'));
-            exit;
+            return $this->redirect('/complain-list');
         }
     }
 
-    // API for Customer Search
+    /**
+     * AJAX API for Customer Search.
+     * 
+     * @return void Sends JSON response.
+     */
     public function search()
     {
-        header('Content-Type: application/json');
         $q = $_GET['q'] ?? '';
 
         if (strlen($q) > 0) {
@@ -116,16 +145,21 @@ class ComplainListController extends Controller
             try {
                 $stmt->execute([$term, $term, $term]);
                 $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                echo json_encode($results);
+                return $this->json($results);
             } catch (\PDOException $e) {
-                echo json_encode([]);
+                return $this->json([], 500);
             }
         } else {
-            echo json_encode([]);
+            return $this->json([]);
         }
-        exit;
     }
 
+    /**
+     * Show the edit form for a complaint.
+     * 
+     * @param int $id The complaint ID.
+     * @return void
+     */
     public function edit($id)
     {
         // Fetch the complain
@@ -134,8 +168,7 @@ class ComplainListController extends Controller
         $complain = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$complain) {
-            header('Location: ' . url('complain-list'));
-            exit;
+            return $this->redirect('/complain-list');
         }
 
         // Fetch customer details
@@ -159,6 +192,12 @@ class ComplainListController extends Controller
         ]);
     }
 
+    /**
+     * Update an existing complaint.
+     * 
+     * @param int $id The complaint ID.
+     * @return void Redirects back.
+     */
     public function update($id)
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -181,18 +220,22 @@ class ComplainListController extends Controller
                 ]);
             }
 
-            header('Location: ' . url('complain-list'));
-            exit;
+            return $this->redirect('/complain-list');
         }
     }
 
+    /**
+     * Delete a complaint record.
+     * 
+     * @param int $id The complaint ID.
+     * @return void Redirects back.
+     */
     public function delete($id)
     {
         if ($id) {
             $stmt = $this->db->prepare("DELETE FROM customer_complains WHERE id = :id");
             $stmt->execute([':id' => $id]);
         }
-        header('Location: ' . url('complain-list'));
-        exit;
+        return $this->redirect('/complain-list');
     }
 }

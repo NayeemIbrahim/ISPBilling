@@ -5,16 +5,27 @@ use App\Core\Controller;
 use Database;
 use PDO;
 
+/**
+ * ComplainController
+ * 
+ * Manages complain types/categories for the setup section.
+ */
 class ComplainController extends Controller
 {
-    private $db;
-
+    /**
+     * ComplainController constructor.
+     */
     public function __construct()
     {
         $this->db = (new Database())->getConnection();
         $this->createTableIfNotExists();
     }
 
+    /**
+     * Ensures the complain_types table exists.
+     * 
+     * @return void
+     */
     private function createTableIfNotExists()
     {
         $sql = "CREATE TABLE IF NOT EXISTS complain_types (
@@ -26,6 +37,11 @@ class ComplainController extends Controller
         $this->db->exec($sql);
     }
 
+    /**
+     * Display the complain setup view.
+     * 
+     * @return void
+     */
     public function index()
     {
         $stmt = $this->db->query("SELECT * FROM complain_types ORDER BY id ASC");
@@ -38,6 +54,11 @@ class ComplainController extends Controller
         ]);
     }
 
+    /**
+     * Store or update a complain type.
+     * 
+     * @return void Redirects back.
+     */
     public function store()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -46,9 +67,7 @@ class ComplainController extends Controller
             $description = $_POST['description'] ?? '';
 
             if (empty($title)) {
-                // handle error or redirect
-                header('Location: ' . url('complain'));
-                exit;
+                return $this->redirect('/complain');
             }
 
             if ($id) {
@@ -61,18 +80,22 @@ class ComplainController extends Controller
                 $stmt->execute([':title' => $title, ':description' => $description]);
             }
 
-            header('Location: ' . url('complain'));
-            exit;
+            return $this->redirect('/complain');
         }
     }
 
+    /**
+     * Delete a complain type.
+     * 
+     * @param int $id The complain type ID.
+     * @return void Redirects back.
+     */
     public function delete($id)
     {
         if ($id) {
             $stmt = $this->db->prepare("DELETE FROM complain_types WHERE id = :id");
             $stmt->execute([':id' => $id]);
         }
-        header('Location: ' . url('complain'));
-        exit;
+        return $this->redirect('/complain');
     }
 }

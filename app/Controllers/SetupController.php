@@ -5,15 +5,26 @@ use App\Core\Controller;
 use Database;
 use PDO;
 
+/**
+ * SetupController
+ * 
+ * Handles general application setup, including package and merchant management.
+ */
 class SetupController extends Controller
 {
-    private $db;
-
+    /**
+     * SetupController constructor.
+     */
     public function __construct()
     {
         $this->db = (new Database())->getConnection();
     }
 
+    /**
+     * Handles package setup view and operations.
+     * 
+     * @return void
+     */
     public function package()
     {
         // 1. Auto-Migration (Fix for missing tables)

@@ -5,16 +5,27 @@ use App\Core\Controller;
 use Database;
 use PDO;
 
+/**
+ * PrefixController
+ * 
+ * Manages ID prefixes for customers and ensures database consistency.
+ */
 class PrefixController extends Controller
 {
-    private $db;
-
+    /**
+     * PrefixController constructor.
+     */
     public function __construct()
     {
         $this->db = (new Database())->getConnection();
         $this->initDatabase();
     }
 
+    /**
+     * Initializes the id_prefixes table and migrates customers if needed.
+     * 
+     * @return void
+     */
     private function initDatabase()
     {
         // 1. Create id_prefixes table
@@ -58,6 +69,11 @@ class PrefixController extends Controller
         }
     }
 
+    /**
+     * Display the ID prefix setup view.
+     * 
+     * @return void
+     */
     public function index()
     {
         $sql = "SELECT ip.*, COUNT(c.id) as customer_count 
@@ -75,6 +91,11 @@ class PrefixController extends Controller
         ]);
     }
 
+    /**
+     * Store or update an ID prefix.
+     * 
+     * @return void Redirects back.
+     */
     public function store()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -91,11 +112,16 @@ class PrefixController extends Controller
                 $stmt->execute([':prefix_code' => $prefix_code]);
             }
 
-            header('Location: ' . url('prefix'));
-            exit;
+            return $this->redirect('/prefix');
         }
     }
 
+    /**
+     * Set a prefix as the default for new customers.
+     * 
+     * @param int $id The prefix ID.
+     * @return void Redirects back.
+     */
     public function setDefault($id)
     {
         if ($id) {
@@ -105,7 +131,6 @@ class PrefixController extends Controller
             $stmt = $this->db->prepare("UPDATE id_prefixes SET is_default = TRUE WHERE id = :id");
             $stmt->execute([':id' => $id]);
         }
-        header('Location: ' . url('prefix'));
-        exit;
+        return $this->redirect('/prefix');
     }
 }

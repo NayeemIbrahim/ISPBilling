@@ -5,15 +5,27 @@ use App\Core\Controller;
 use Database;
 use PDO;
 
+/**
+ * ReportController
+ * 
+ * Generates various reports including due lists, inactive customer reports,
+ * and collection summaries.
+ */
 class ReportController extends Controller
 {
-    private $db;
-
+    /**
+     * ReportController constructor.
+     */
     public function __construct()
     {
         $this->db = (new Database())->getConnection();
     }
 
+    /**
+     * Generate and display the Due List report.
+     * 
+     * @return void
+     */
     public function dueList()
     {
         $startDate = $_GET['start_date'] ?? date('Y-m-01');
@@ -130,6 +142,11 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Generate and display the Inactive List report.
+     * 
+     * @return void
+     */
     public function inactiveList()
     {
         $sql = "SELECT c.*, p.name as package_name_ref, ip.prefix_code 
@@ -148,6 +165,11 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Generate and display the Collection Report.
+     * 
+     * @return void
+     */
     public function collectionReport()
     {
         $startDate = $_GET['start_date'] ?? date('Y-m-01');
@@ -261,6 +283,11 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Internal process for auto-disabling expired customers.
+     * 
+     * @return void Sends JSON response.
+     */
     public function processAutoDisable()
     {
         // This method can be triggered manually or via cron
@@ -273,12 +300,17 @@ class ReportController extends Controller
                     AND expire_date < CURDATE()";
             $affected = $this->db->exec($sql);
 
-            echo json_encode(['status' => 'success', 'message' => "$affected customers auto-disabled."]);
+            return $this->json(['status' => 'success', 'message' => "$affected customers auto-disabled."]);
         } catch (\Exception $e) {
-            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+            return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
     }
 
+    /**
+     * Display the Customer Summary view.
+     * 
+     * @return void
+     */
     public function customerSummary()
     {
         // Summary of counts and amounts
@@ -298,6 +330,11 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * AJAX fetch bill history for a specific customer.
+     * 
+     * @return void Sends JSON response.
+     */
     public function customerHistory()
     {
         $customerId = $_GET['customer_id'] ?? 0;
@@ -311,21 +348,25 @@ class ReportController extends Controller
         $customer = $stmt->fetch(\PDO::FETCH_ASSOC);
 
         if (!$customer) {
-            echo json_encode(['success' => false, 'message' => 'Customer not found']);
-            return;
+            return $this->json(['success' => false, 'message' => 'Customer not found'], 404);
         }
 
-        // Fetch collections
-        $sqlCollections = "SELECT c.*, e.name as collected_by_name 
-                          FROM collections c 
-                          LEFT JOIN employees e ON c.collected_by = e.id 
-                          WHERE c.customer_id = ? 
-                          ORDER BY c.collection_date DESC";
+        // Fetch collections with collector name from employees, fallback to 'System' if ID exists but not in employees
+        $sqlCollections = "SELECT c.*, 
+                                  CASE 
+                                      WHEN e.name IS NOT NULL THEN e.name 
+                                      WHEN c.collected_by IS NOT NULL THEN 'System' 
+                                      ELSE NULL 
+                                  END as collected_by_name 
+                           FROM collections c 
+                           LEFT JOIN employees e ON c.collected_by = e.id 
+                           WHERE c.customer_id = ? 
+                           ORDER BY c.collection_date DESC";
         $stmtCol = $this->db->prepare($sqlCollections);
         $stmtCol->execute([$customerId]);
         $collections = $stmtCol->fetchAll(\PDO::FETCH_ASSOC);
 
-        echo json_encode([
+        return $this->json([
             'success' => true,
             'customer' => $customer,
             'collections' => $collections

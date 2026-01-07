@@ -5,15 +5,26 @@ use App\Core\Controller;
 use Database;
 use PDO;
 
+/**
+ * EmployeeController
+ * 
+ * Manages employee records, roles, and permissions.
+ */
 class EmployeeController extends Controller
 {
-    private $db;
-
+    /**
+     * EmployeeController constructor.
+     */
     public function __construct()
     {
         $this->db = (new Database())->getConnection();
     }
 
+    /**
+     * Display the employee and roles management view.
+     * 
+     * @return void
+     */
     public function index()
     {
         // 1. Auto-Migration
@@ -38,10 +49,7 @@ class EmployeeController extends Controller
             'Reports'
         ];
 
-        // 4. Mikrotik List (Mock or Fetch if table exists, for now hardcoded or empty)
-        // Assuming we might have a mikrotiks table later, but user asked for dropdown. 
-        // We'll provide a static list or check if table exists. 
-        // For now, I'll put some placeholders as per previous context 'Mikrotik' menu implies it exists.
+        // 4. Mikrotik List
         $mikrotiks = ['Router 1', 'Router 2', 'Main Router']; // Placeholder
 
         $this->view('setup/employee', [
@@ -54,6 +62,11 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * Store or update an employee role.
+     * 
+     * @return void Redirects back.
+     */
     public function storeRole()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -83,20 +96,29 @@ class EmployeeController extends Controller
                 }
             }
         }
-        header('Location: ' . url('employee')); // Redirect back
-        exit;
+        return $this->redirect('/employee');
     }
 
+    /**
+     * Delete an employee role.
+     * 
+     * @param int $id The role ID.
+     * @return void Redirects back.
+     */
     public function deleteRole($id)
     {
         if ($id) {
             $stmt = $this->db->prepare("DELETE FROM roles WHERE id = :id");
             $stmt->execute([':id' => $id]);
         }
-        header('Location: ' . url('employee'));
-        exit;
+        return $this->redirect('/employee');
     }
 
+    /**
+     * Store or update an employee record.
+     * 
+     * @return void Redirects back.
+     */
     public function storeEmployee()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -132,7 +154,8 @@ class EmployeeController extends Controller
                     $stmt = $this->db->prepare($sql);
                     try {
                         $stmt->execute($params);
-                    } catch (\PDOException $e) { /* Handle error */
+                    } catch (\PDOException $e) {
+                        // Error handled by silent fail for now
                     }
 
                 } else {
@@ -149,26 +172,36 @@ class EmployeeController extends Controller
                                 ':role_id' => $role_id,
                                 ':mikrotik_access' => $mikrotik_access
                             ]);
-                        } catch (\PDOException $e) { /* Handle error */
+                        } catch (\PDOException $e) {
+                            // Error handled by silent fail for now
                         }
                     }
                 }
             }
         }
-        header('Location: ' . url('employee'));
-        exit;
+        return $this->redirect('/employee');
     }
 
+    /**
+     * Delete an employee record.
+     * 
+     * @param int $id The employee ID.
+     * @return void Redirects back.
+     */
     public function deleteEmployee($id)
     {
         if ($id) {
             $stmt = $this->db->prepare("DELETE FROM employees WHERE id = :id");
             $stmt->execute([':id' => $id]);
         }
-        header('Location: ' . url('employee'));
-        exit;
+        return $this->redirect('/employee');
     }
 
+    /**
+     * Ensures required tables (roles, employees) exist in the database.
+     * 
+     * @return void
+     */
     private function ensureTablesExist()
     {
         try {
@@ -194,7 +227,7 @@ class EmployeeController extends Controller
                 FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE SET NULL
             )");
         } catch (\Exception $e) {
-            // SIlent fail or log
+            // Silent fail
         }
     }
 }

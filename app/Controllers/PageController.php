@@ -5,9 +5,18 @@ use App\Core\Controller;
 use Database;
 use PDO;
 
+/**
+ * PageController
+ * 
+ * Handles static pages and the main dashboard view.
+ */
 class PageController extends Controller
 {
-
+    /**
+     * Display the dashboard with summary stats and pending customers.
+     * 
+     * @return void
+     */
     public function index()
     {
         // Fetch Only Pending Customers for the dashboard table

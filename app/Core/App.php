@@ -1,12 +1,34 @@
 <?php
 namespace App\Core;
 
+/**
+ * Core Application Router
+ * 
+ * Handles URL parsing and controller/method dispatching.
+ */
 class App
 {
+    /**
+     * Default controller name.
+     * @var string
+     */
     protected $controller = 'PageController';
+
+    /**
+     * Default method name.
+     * @var string
+     */
     protected $method = 'index';
+
+    /**
+     * URL parameters.
+     * @var array
+     */
     protected $params = [];
 
+    /**
+     * Initialize the application and dispatch the request.
+     */
     public function __construct()
     {
         $url = $this->parseUrl();
@@ -46,10 +68,16 @@ class App
         call_user_func_array([$this->controller, $this->method], $this->params);
     }
 
+    /**
+     * Parse the URL into an array.
+     * 
+     * @return array|null The parsed URL segments.
+     */
     public function parseUrl()
     {
         if (isset($_GET['url'])) {
             return explode('/', filter_var(rtrim($_GET['url'], '/'), FILTER_SANITIZE_URL));
         }
+        return null;
     }
 }
