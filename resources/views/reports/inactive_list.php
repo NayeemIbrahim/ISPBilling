@@ -249,7 +249,7 @@
                                         <?= ($c['auto_disable'] == 1) ? '<span style="color: #10b981;" title="Auto-disable enabled"><i class="fas fa-robot"></i></span>' : '<span style="color: #94a3b8;" title="Manual only"><i class="fas fa-user-cog"></i></span>' ?>
                                     </td>
                                     <td>
-                                        <a href="<?= url('customers/show/' . $c['id']) ?>" class="btn-view">
+                                        <a href="<?= url('customer/show/' . $c['id']) ?>" class="btn-view">
                                             <i class="fas fa-eye"></i> View
                                         </a>
                                     </td>

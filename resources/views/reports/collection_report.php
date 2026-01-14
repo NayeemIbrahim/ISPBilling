@@ -420,7 +420,8 @@
                                             <?= date('h:i A', strtotime($col['collection_date'])) ?>
                                         </div>
                                     </td>
-                                    <td><span class="col-id">NBXY<?= str_pad($col['payment_id'], 4, '0', STR_PAD_LEFT) ?></span>
+                                    <td><span
+                                            class="col-id"><?= htmlspecialchars($col['payment_id'] ?? $col['transaction_id']) ?></span>
                                     </td>
                                     <td><span
                                             class="col-id"><?= htmlspecialchars($col['prefix_code'] ?? '') ?><?= $col['customer_id'] ?></span>

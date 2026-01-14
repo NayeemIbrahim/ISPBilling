@@ -70,7 +70,8 @@
                         class="date-picker" placeholder="DD/MM/YYYY" value="<?= date('Y-m-d') ?>">
                 </div>
                 <div class="form-group"><label>Expire Date</label><input type="text" name="expire_date"
-                        class="date-picker" placeholder="DD/MM/YYYY" value="<?= date('Y-m-05', strtotime('first day of next month')) ?>">
+                        class="date-picker" placeholder="DD/MM/YYYY"
+                        value="<?= date('Y-m-05', strtotime('first day of next month')) ?>">
                 </div>
                 <div class="form-group">
                     <label>Auto Temporary Disable</label>
@@ -147,23 +148,25 @@
                     </select>
                 </div>
                 <div class="form-group"><label>Monthly Rent</label><input type="number" id="monthly_rent"
-                        name="monthly_rent" value="0"></div>
+                        name="monthly_rent" value="0" oninput="calculateTotal()"></div>
                 <div class="form-group"><label>Payment ID (Customer ID)</label>
                     <input type="text" name="payment_id"
                         value="<?= htmlspecialchars(($defaultPrefix ?? '') . ($nextId ?? '')) ?>"
                         placeholder="Payment Gateway ID">
                 </div>
-                <div class="form-group"><label>Due</label><input type="number" name="due_amount" value="0"></div>
+                <div class="form-group"><label>Due</label><input type="number" id="due_amount" name="due_amount"
+                        value="0" oninput="calculateTotal()"></div>
                 <div class="form-group"><label>Additional Charge</label><input type="number" id="additional_charge"
-                        name="additional_charge" value="0"></div>
+                        name="additional_charge" value="0" oninput="calculateTotal()"></div>
                 <div class="form-group"><label>Discount</label><input type="number" id="discount" name="discount"
-                        value="0"></div>
-                <div class="form-group"><label>Advance</label><input type="number" name="advance_amount" value="0">
+                        value="0" oninput="calculateTotal()"></div>
+                <div class="form-group"><label>Advance</label><input type="number" id="advance_amount"
+                        name="advance_amount" value="0" oninput="calculateTotal()">
                 </div>
                 <div class="form-group"><label>Vat ( % )</label><input type="number" id="vat_percent" name="vat_percent"
-                        value="0"></div>
+                        value="0" oninput="calculateTotal()"></div>
                 <div class="form-group"><label>Total</label><input type="number" name="total_amount" id="total_amount"
-                        readonly></div>
+                        readonly value="0"></div>
             </div>
 
             <!-- 6. Official Information -->
@@ -323,7 +326,25 @@
         const price = select.options[select.selectedIndex].getAttribute('data-price');
         if (price) {
             document.getElementById('monthly_rent').value = price;
+            calculateTotal(); // Trigger calculation
         }
+    }
+
+    function calculateTotal() {
+        const rent = parseFloat(document.getElementById('monthly_rent').value) || 0;
+        const add = parseFloat(document.getElementById('additional_charge').value) || 0;
+        const due = parseFloat(document.getElementById('due_amount').value) || 0;
+        const vatP = parseFloat(document.getElementById('vat_percent').value) || 0;
+        const disc = parseFloat(document.getElementById('discount').value) || 0;
+        const adv = parseFloat(document.getElementById('advance_amount').value) || 0;
+
+        // Logic: (Rent + Add) * (1 + VAT/100) + Due - Discount - Advance
+        // Or as user said: sum of rent, add, due, vat percentage, then subtract discount and advance.
+        
+        const vatAmount = (rent + add) * (vatP / 100);
+        const total = (rent + add + due + vatAmount) - (disc + adv);
+
+        document.getElementById('total_amount').value = Math.round(total);
     }
 </script>
 <?php include __DIR__ . '/../partials/footer.php'; ?>

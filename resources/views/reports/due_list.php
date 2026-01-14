@@ -315,21 +315,28 @@
                 <i class="fas fa-exclamation-triangle"></i>
                 Due List Report
             </div>
-            <button onclick="window.print()" class="btn-print"><i class="fas fa-print"></i> Print Report</button>
+            <div style="display: flex; gap: 10px;">
+                <button onclick="syncBalances()" class="btn-print" id="syncBtn">
+                    <i class="fas fa-sync"></i> Sync All Balances
+                </button>
+                <button onclick="window.print()" class="btn-print">
+                    <i class="fas fa-print"></i> Print Report
+                </button>
+            </div>
         </div>
 
         <div class="filter-section">
             <form method="GET" action="<?= url('report/dueList') ?>" class="filter-form">
                 <div class="filter-row">
                     <div class="form-group-custom">
-                        <label>Start Date</label>
+                        <label>Filter by Expiry (Start)</label>
                         <input type="text" name="start_date" value="<?= $startDate ?>"
-                            class="form-control-custom date-picker" placeholder="DD/MM/YYYY">
+                            class="form-control-custom date-picker" placeholder="Optional">
                     </div>
                     <div class="form-group-custom">
-                        <label>End Date</label>
+                        <label>Filter by Expiry (End)</label>
                         <input type="text" name="end_date" value="<?= $endDate ?>"
-                            class="form-control-custom date-picker" placeholder="DD/MM/YYYY">
+                            class="form-control-custom date-picker" placeholder="Optional">
                     </div>
                     <div class="form-group-custom">
                         <label>Agent</label>
@@ -411,11 +418,13 @@
                                     <td><?= htmlspecialchars($c['mobile_no']) ?></td>
                                     <td><?= htmlspecialchars($c['area'] ?? 'N/A') ?></td>
                                     <td style="text-align: right; font-weight: 500; font-family: monospace;">
-                                        <?= number_format($c['monthly_rent'], 2) ?></td>
+                                        <?= number_format($c['monthly_rent'], 2) ?>
+                                    </td>
                                     <td style="text-align: right; font-weight: 700; color: #ef4444; font-family: monospace;">
-                                        <?= number_format($c['due_amount'], 2) ?></td>
+                                        <?= number_format($c['due_amount'], 2) ?>
+                                    </td>
                                     <td>
-                                        <a href="<?= url('customers/show/' . $c['id']) ?>" class="btn-action">
+                                        <a href="<?= url('customer/show/' . $c['id']) ?>" class="btn-action">
                                             <i class="fas fa-eye"></i> View
                                         </a>
                                     </td>
@@ -437,6 +446,27 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    function syncBalances() {
+        if (!confirm('This will recalculate all customer balances from their connection dates and update the database permanently. Are you sure?')) return;
+
+        const btn = document.getElementById('syncBtn');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+
+        fetch('<?= url('report/syncBalances') ?>')
+            .then(res => res.json())
+            .then(res => {
+                alert(res.message);
+                location.reload();
+            })
+            .catch(err => {
+                alert('Error syncing balances.');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            });
+    }
+
     <?php if (!empty($chartData['labels'])): ?>
         const ctx = document.getElementById('dueChart').getContext('2d');
         new Chart(ctx, {
