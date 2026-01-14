@@ -84,7 +84,7 @@
             <form method="GET" action="<?= url('customer') ?>" class="search-box"
                 style="display:flex; gap:10px; align-items:center;">
                 <!-- Status Checkboxes -->
-                <div style="display:flex; gap:10px; font-size:14px;">
+                <div style="display:flex; gap:10px; font-size:14px;" class="no-print">
                     <label style="cursor:pointer;">
                         <input type="checkbox" name="status[]" value="active" onchange="this.form.submit()"
                             <?= in_array('active', $statuses ?? []) ? 'checked' : '' ?>> Active
@@ -100,12 +100,34 @@
                 </div>
 
                 <input type="text" name="q" placeholder="Search..." value="<?= htmlspecialchars($q ?? '') ?>"
-                    style="padding: 8px; width: 250px; border: 1px solid #ccc; border-radius: 4px;">
+                    style="padding: 8px; width: 200px; border: 1px solid #ccc; border-radius: 4px;" class="no-print">
                 <button type="submit"
-                    style="padding: 8px 15px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer;">Search</button>
+                    style="padding: 8px 15px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer;"
+                    class="no-print">Search</button>
                 <?php if (!empty($q) || !empty($statuses)): ?>
-                    <a href="<?= url('customer') ?>" style="color:#ef4444; text-decoration:none; font-size:14px;">Clear</a>
+                    <a href="<?= url('customer') ?>" style="color:#ef4444; text-decoration:none; font-size:14px;"
+                        class="no-print">Clear</a>
                 <?php endif; ?>
+
+                <div class="column-selector-wrapper no-print">
+                    <button type="button" class="btn-secondary" id="colPickerBtn" style="padding: 8px 15px;">
+                        <i class="fas fa-columns"></i> Columns
+                    </button>
+                    <div class="column-picker-dropdown" id="colPickerDropdown" style="left: auto; right: 0;">
+                        <label><input type="checkbox" class="col-toggle" data-col="0" checked> ID</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="1" checked> Name</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="2" checked> Mobile</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="3" checked> Area</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="4" checked> Package</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="5" checked> Payment ID</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="6" checked> Due</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="7" checked> Status</label>
+                    </div>
+                </div>
+                <button type="button" onclick="window.print()" class="btn-secondary no-print"
+                    style="padding: 8px 15px;">
+                    <i class="fas fa-print"></i> Print
+                </button>
             </form>
         </div>
 
@@ -189,7 +211,7 @@
                                 <i class="fas fa-caret-down <?= arrowClass('status', 'DESC', $sort, $order) ?>"></i>
                             </div>
                         </th>
-                        <th>Actions</th>
+                        <th class="no-print">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -228,7 +250,7 @@
                                     ?>
                                     <span style="color:<?= $color ?>; font-weight:bold;"><?= $label ?></span>
                                 </td>
-                                <td>
+                                <td class="no-print">
                                     <a href="<?= url('customer/show/' . $customer['id']) ?>" class="btn-table"
                                         style="background:#3b82f6; text-decoration:none;">View/Edit</a>
                                     <form action="<?= url('customer/delete/' . $customer['id']) ?>" method="POST"
@@ -249,18 +271,20 @@
 
         <!-- Pagination Controls -->
         <?php if ($totalPages > 1): ?>
-            <div class="pagination-container">
+            <div class="pagination-container no-print">
                 <div class="pagination-info">
                     Showing Page <?= $currentPage ?> of <?= $totalPages ?>
                 </div>
                 <div class="pagination-links">
                     <?php
                     // Helper for page URLs
-                    function pageUrl($pageNum)
-                    {
-                        $params = $_GET;
-                        $params['page'] = $pageNum;
-                        return url('customer?' . http_build_query($params));
+                    if (!function_exists('pageUrl')) {
+                        function pageUrl($pageNum)
+                        {
+                            $params = $_GET;
+                            $params['page'] = $pageNum;
+                            return url('customer?' . http_build_query($params));
+                        }
                     }
                     ?>
 
@@ -297,5 +321,60 @@
         <?php endif; ?>
     </div>
 </main>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const pickerBtn = document.getElementById('colPickerBtn');
+        const pickerDropdown = document.getElementById('colPickerDropdown');
+        const toggles = document.querySelectorAll('.col-toggle');
+        const table = document.getElementById('customerTable');
+        const STORAGE_KEY = 'customer_list_cols';
+
+        // Toggle dropdown
+        pickerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            pickerDropdown.classList.toggle('active');
+        });
+
+        document.addEventListener('click', () => {
+            pickerDropdown.classList.remove('active');
+        });
+
+        pickerDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Load saved preferences
+        let preferences = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+
+        toggles.forEach(checkbox => {
+            const colIndex = checkbox.dataset.col;
+            if (preferences[colIndex] === false) {
+                checkbox.checked = false;
+                toggleColumn(colIndex, false);
+            }
+
+            checkbox.addEventListener('change', function () {
+                toggleColumn(colIndex, this.checked);
+                preferences[colIndex] = this.checked;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+            });
+        });
+
+        function toggleColumn(index, show) {
+            const rows = table.rows;
+            for (let i = 0; i < rows.length; i++) {
+                const cell = rows[i].cells[index];
+                if (cell) {
+                    if (show) {
+                        cell.classList.remove('col-hidden');
+                    } else {
+                        cell.classList.add('col-hidden');
+                    }
+                }
+            }
+        }
+    });
+</script>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

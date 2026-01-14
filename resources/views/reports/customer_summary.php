@@ -40,10 +40,37 @@
                         <div id="custAddress" style="margin-top: 4px; color: #64748b; font-size: 13px;"></div>
                     </div>
                     <div style="text-align: right;">
-                        <button onclick="printHistory()" class="no-print"
-                            style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            <i class="fas fa-print"></i> Print History
-                        </button>
+                        <div class="action-group no-print" style="display: flex; gap: 10px; align-items: center;">
+                            <div class="column-selector-wrapper">
+                                <button type="button" class="btn-secondary" id="colPickerBtn"
+                                    style="padding: 8px 12px; font-size: 13px;">
+                                    <i class="fas fa-columns"></i> Columns
+                                </button>
+                                <div class="column-picker-dropdown" id="colPickerDropdown">
+                                    <label><input type="checkbox" class="col-toggle" data-col="0" checked> Date</label>
+                                    <label><input type="checkbox" class="col-toggle" data-col="1" checked>
+                                        Description</label>
+                                    <label><input type="checkbox" class="col-toggle" data-col="2" checked> Bill
+                                        Amount</label>
+                                    <label><input type="checkbox" class="col-toggle" data-col="3" checked>
+                                        Additional</label>
+                                    <label><input type="checkbox" class="col-toggle" data-col="4" checked>
+                                        Discount</label>
+                                    <label><input type="checkbox" class="col-toggle" data-col="5" checked> Due</label>
+                                    <label><input type="checkbox" class="col-toggle" data-col="6" checked>
+                                        Advance</label>
+                                    <label><input type="checkbox" class="col-toggle" data-col="7" checked> Paid
+                                        Amount</label>
+                                    <label><input type="checkbox" class="col-toggle" data-col="8" checked> Collected
+                                        By</label>
+                                    <label><input type="checkbox" class="col-toggle" data-col="9" checked> Note</label>
+                                </div>
+                            </div>
+                            <button onclick="window.print()" class="btn-collect"
+                                style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                                <i class="fas fa-print"></i> Print History
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -65,6 +92,7 @@
                             </tr>
                         </thead>
                         <tbody id="historyTableBody"></tbody>
+                        <tfoot id="historyTableFoot"></tfoot>
                     </table>
                 </div>
             </div>
@@ -294,14 +322,17 @@
                         });
 
                         // Footer Row
-                        const footerRow = `
+                        const tfoot = document.getElementById('historyTableFoot');
+                        tfoot.innerHTML = `
                             <tr style="background: #f8fafc; font-weight: 700; border-top: 2px solid #e2e8f0; border-bottom: 2px solid #e2e8f0;">
                                 <td colspan="7" style="padding: 12px; text-align: right; color: #475569;">Total Paid:</td>
                                 <td style="padding: 12px; text-align: right; color: #059669;">${totalPaid.toFixed(2)}</td>
                                 <td colspan="2"></td>
                             </tr>
                         `;
-                        tbody.innerHTML += footerRow;
+
+                        // Apply column visibility after rendering
+                        applyColumnVisibility();
                     }
 
                     document.getElementById('historySection').style.display = 'block';
@@ -311,25 +342,80 @@
     }
 
     function printHistory() {
-        const printContent = document.getElementById('printableArea').innerHTML;
-        const originalContent = document.body.innerHTML;
-
-        document.body.innerHTML = `
-        <div style="padding: 40px;">
-            ${printContent}
-        </div>
-    `;
-
-        // Hide print button in print view
-        const btns = document.querySelectorAll('.no-print');
-        btns.forEach(btn => btn.style.display = 'none');
-
         window.print();
-        document.body.innerHTML = originalContent;
-
-        // Re-attach event listeners (since we replaced body HTML)
-        location.reload();
     }
+
+    // Column Picker Logic
+    document.addEventListener('DOMContentLoaded', function () {
+        const pickerBtn = document.getElementById('colPickerBtn');
+        const pickerDropdown = document.getElementById('colPickerDropdown');
+        const toggles = document.querySelectorAll('.col-toggle');
+        const table = document.querySelector('#printableArea table');
+        const STORAGE_KEY = 'customer_summary_cols';
+
+        // Toggle dropdown
+        pickerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            pickerDropdown.classList.toggle('active');
+        });
+
+        document.addEventListener('click', () => {
+            pickerDropdown.classList.remove('active');
+        });
+
+        pickerDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Load saved preferences
+        let preferences = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+
+        toggles.forEach(checkbox => {
+            const colIndex = checkbox.dataset.col;
+            if (preferences[colIndex] === false) {
+                checkbox.checked = false;
+            }
+
+            checkbox.addEventListener('change', function () {
+                toggleColumn(colIndex, this.checked);
+                preferences[colIndex] = this.checked;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+            });
+        });
+
+        window.applyColumnVisibility = function () {
+            toggles.forEach(checkbox => {
+                toggleColumn(checkbox.dataset.col, checkbox.checked);
+            });
+        };
+
+        function toggleColumn(index, show) {
+            const table = document.querySelector('#printableArea table');
+            if (!table) return;
+            const rows = table.rows;
+            for (let i = 0; i < rows.length; i++) {
+                const cell = rows[i].cells[index];
+                if (cell) {
+                    if (show) {
+                        cell.classList.remove('col-hidden');
+                    } else {
+                        cell.classList.add('col-hidden');
+                    }
+                }
+            }
+
+            // Handle colspan for footer
+            const tfoot = document.getElementById('historyTableFoot');
+            if (tfoot && tfoot.rows.length > 0) {
+                const footerRow = tfoot.rows[0];
+                let visibleBeforePaid = 0;
+                for (let i = 0; i < 7; i++) {
+                    if (preferences[i] !== false) visibleBeforePaid++;
+                }
+                footerRow.cells[0].colSpan = visibleBeforePaid;
+            }
+        }
+    });
 </script>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

@@ -319,6 +319,19 @@
                 <button onclick="syncBalances()" class="btn-print" id="syncBtn">
                     <i class="fas fa-sync"></i> Sync All Balances
                 </button>
+                <div class="column-selector-wrapper no-print">
+                    <button type="button" class="btn-print" id="colPickerBtn">
+                        <i class="fas fa-columns"></i> Columns
+                    </button>
+                    <div class="column-picker-dropdown" id="colPickerDropdown" style="left: auto; right: 0;">
+                        <label><input type="checkbox" class="col-toggle" data-col="0" checked> ID</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="1" checked> Customer</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="2" checked> Mobile</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="3" checked> Area</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="4" checked> Monthly Rent</label>
+                        <label><input type="checkbox" class="col-toggle" data-col="5" checked> Due Amount</label>
+                    </div>
+                </div>
                 <button onclick="window.print()" class="btn-print">
                     <i class="fas fa-print"></i> Print Report
                 </button>
@@ -398,7 +411,7 @@
                             <th width="15%">Area</th>
                             <th width="12%" style="text-align: right;">Monthly Rent</th>
                             <th width="12%" style="text-align: right;">Due Amount</th>
-                            <th width="11%">Action</th>
+                            <th width="11%" class="no-print">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -423,7 +436,7 @@
                                     <td style="text-align: right; font-weight: 700; color: #ef4444; font-family: monospace;">
                                         <?= number_format($c['due_amount'], 2) ?>
                                     </td>
-                                    <td>
+                                    <td class="no-print">
                                         <a href="<?= url('customer/show/' . $c['id']) ?>" class="btn-action">
                                             <i class="fas fa-eye"></i> View
                                         </a>
@@ -501,6 +514,59 @@
             }
         });
     <?php endif; ?>
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const pickerBtn = document.getElementById('colPickerBtn');
+        const pickerDropdown = document.getElementById('colPickerDropdown');
+        const toggles = document.querySelectorAll('.col-toggle');
+        const table = document.querySelector('.custom-table');
+        const STORAGE_KEY = 'due_list_cols';
+
+        // Toggle dropdown
+        pickerBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            pickerDropdown.classList.toggle('active');
+        });
+
+        document.addEventListener('click', () => {
+            pickerDropdown.classList.remove('active');
+        });
+
+        pickerDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Load saved preferences
+        let preferences = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+
+        toggles.forEach(checkbox => {
+            const colIndex = checkbox.dataset.col;
+            if (preferences[colIndex] === false) {
+                checkbox.checked = false;
+                toggleColumn(colIndex, false);
+            }
+
+            checkbox.addEventListener('change', function () {
+                toggleColumn(colIndex, this.checked);
+                preferences[colIndex] = this.checked;
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
+            });
+        });
+
+        function toggleColumn(index, show) {
+            const rows = table.rows;
+            for (let i = 0; i < rows.length; i++) {
+                const cell = rows[i].cells[index];
+                if (cell) {
+                    if (show) {
+                        cell.classList.remove('col-hidden');
+                    } else {
+                        cell.classList.add('col-hidden');
+                    }
+                }
+            }
+        }
+    });
 </script>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

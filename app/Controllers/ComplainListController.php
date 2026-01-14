@@ -51,14 +51,47 @@ class ComplainListController extends Controller
      */
     public function index()
     {
-        // Fetch complaints with related data
+        $q = $_GET['q'] ?? '';
+        $sort = $_GET['sort'] ?? 'id';
+        $order = strtoupper($_GET['order'] ?? 'DESC');
+
+        // Validation for sort/order to prevent SQL injection
+        $allowedSorts = ['id', 'full_name', 'complain_title', 'status', 'created_at'];
+        if (!in_array($sort, $allowedSorts))
+            $sort = 'id';
+        if (!in_array($order, ['ASC', 'DESC']))
+            $order = 'DESC';
+
+        // Mapping sort fields to actual columns
+        $sortColumn = "cc.id";
+        if ($sort == 'full_name')
+            $sortColumn = "c.full_name";
+        if ($sort == 'complain_title')
+            $sortColumn = "ct.title";
+        if ($sort == 'status')
+            $sortColumn = "cc.status";
+        if ($sort == 'created_at')
+            $sortColumn = "cc.created_at";
+
         $sql = "SELECT cc.*, c.full_name, c.mobile_no, c.area, ct.title as complain_title 
                 FROM customer_complains cc
                 JOIN customers c ON cc.customer_id = c.id
-                JOIN complain_types ct ON cc.complain_type_id = ct.id
-                ORDER BY cc.id DESC";
+                JOIN complain_types ct ON cc.complain_type_id = ct.id 
+                WHERE 1=1";
 
-        $stmt = $this->db->query($sql);
+        $params = [];
+        if ($q) {
+            $sql .= " AND (c.full_name LIKE ? OR c.mobile_no LIKE ? OR ct.title LIKE ? OR cc.description LIKE ?)";
+            $params[] = "%$q%";
+            $params[] = "%$q%";
+            $params[] = "%$q%";
+            $params[] = "%$q%";
+        }
+
+        $sql .= " ORDER BY $sortColumn $order";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         $complains = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Fetch all employees to map IDs to Names for display
@@ -69,7 +102,10 @@ class ComplainListController extends Controller
             'title' => 'Complain List',
             'path' => '/complain-list',
             'complains' => $complains,
-            'employees' => $employees
+            'employees' => $employees,
+            'q' => $q,
+            'sort' => $sort,
+            'order' => $order
         ]);
     }
 
