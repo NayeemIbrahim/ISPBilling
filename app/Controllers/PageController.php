@@ -27,7 +27,7 @@ class PageController extends Controller
         // Fetch Stats
         $stmtStats = $db->query("SELECT 
             (SELECT COUNT(*) FROM customers WHERE status = 'active') as active_count,
-            (SELECT SUM(total_amount) FROM customers WHERE status = 'active') as total_revenue,
+            (SELECT COALESCE(SUM(amount), 0) FROM collections WHERE MONTH(collection_date) = MONTH(CURDATE()) AND YEAR(collection_date) = YEAR(CURDATE())) as total_revenue,
             (SELECT SUM(due_amount) FROM customers) as total_due
         ");
         $stats = $stmtStats->fetch(PDO::FETCH_ASSOC);

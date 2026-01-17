@@ -1,4 +1,5 @@
 <?php include __DIR__ . '/../partials/header.php'; ?>
+<?php include __DIR__ . '/../partials/export_scripts.php'; ?>
 
 <div class="dashboard-container">
     <div class="card-box">
@@ -66,6 +67,30 @@
                                     <label><input type="checkbox" class="col-toggle" data-col="9" checked> Note</label>
                                 </div>
                             </div>
+
+                            <!-- Export Dropdown -->
+                            <div class="column-selector-wrapper">
+                                <button type="button" class="btn-secondary" id="exportBtn"
+                                    style="padding: 8px 12px; font-size: 13px;">
+                                    <i class="fas fa-file-export"></i> Export
+                                </button>
+                                <div class="column-picker-dropdown" id="exportDropdown"
+                                    style="left: auto; right: 0; min-width: 140px;">
+                                    <div class="export-option"
+                                        onclick="exportTable('historyTable', 'excel', 'Customer_Summary_Report')">
+                                        <i class="fas fa-file-excel" style="color: #16a34a;"></i> Excel
+                                    </div>
+                                    <div class="export-option"
+                                        onclick="exportTable('historyTable', 'csv', 'Customer_Summary_Report')">
+                                        <i class="fas fa-file-csv" style="color: #0d9488;"></i> CSV
+                                    </div>
+                                    <div class="export-option"
+                                        onclick="exportTable('historyTable', 'pdf', 'Customer_Summary_Report')">
+                                        <i class="fas fa-file-pdf" style="color: #ef4444;"></i> PDF
+                                    </div>
+                                </div>
+                            </div>
+
                             <button onclick="window.print()" class="btn-collect"
                                 style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
                                 <i class="fas fa-print"></i> Print History
@@ -75,7 +100,7 @@
                 </div>
 
                 <div style="overflow-x: auto;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                    <table id="historyTable" style="width: 100%; border-collapse: collapse; font-size: 13px;">
                         <thead>
                             <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
                                 <th style="padding: 12px; text-align: left; color: #475569;">Date</th>
@@ -414,6 +439,24 @@
                 }
                 footerRow.cells[0].colSpan = visibleBeforePaid;
             }
+        }
+    });
+</script>
+<script>
+    // Export Dropdown Logic for Customer Summary
+    document.addEventListener('DOMContentLoaded', function () {
+        const exportBtn = document.getElementById('exportBtn');
+        const exportDropdown = document.getElementById('exportDropdown');
+
+        if (exportBtn && exportDropdown) {
+            exportBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                exportDropdown.classList.toggle('active');
+            });
+
+            document.addEventListener('click', () => {
+                exportDropdown.classList.remove('active');
+            });
         }
     });
 </script>

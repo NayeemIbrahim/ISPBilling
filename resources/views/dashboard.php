@@ -12,7 +12,7 @@
         <div class="card stat-card">
             <h3>Monthly Revenue</h3>
             <div class="value"><?= number_format($stats['total_revenue'] ?? 0) ?> TK</div>
-            <div class="trend up">Target</div>
+            <div class="trend up">Collected</div>
         </div>
         <div class="card stat-card">
             <h3>Due Amount</h3>

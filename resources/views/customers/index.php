@@ -1,7 +1,74 @@
 <?php include __DIR__ . '/../partials/header.php'; ?>
+<?php include __DIR__ . '/../partials/export_scripts.php'; ?>
 
 <style>
     .sort-header {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 20px !important;
+    }
+
+    .sort-header:hover {
+        background: #f1f5f9;
+    }
+
+    .sort-arrows {
+        position: absolute;
+        right: 8px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 10px;
+        display: flex;
+        flex-direction: column;
+        color: #cbd5e1;
+    }
+
+    .sort-arrows .active {
+        color: #3b82f6;
+    }
+
+    .pagination-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 0;
+        margin-top: 10px;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .pagination-info {
+        font-size: 14px;
+        color: #64748b;
+    }
+
+    .pagination-links {
+        display: flex;
+        gap: 5px;
+    }
+
+    .page-link {
+        padding: 5px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        text-decoration: none;
+        color: #1e293b;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+
+    .page-link:hover {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
+
+    .page-link.active {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+
+    <style>.sort-header {
         cursor: pointer;
         user-select: none;
         position: relative;
@@ -72,6 +139,96 @@
         pointer-events: none;
         background: #f8fafc;
     }
+
+    .export-option {
+        padding: 8px 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: #475569;
+    }
+
+    .export-option:hover {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    /* Import Modal Styles */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 2000;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 800px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        border-bottom: 1px solid #e2e8f0;
+        padding-bottom: 15px;
+    }
+
+    .modal-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .btn-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #64748b;
+    }
+
+    .mapping-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+
+    .mapping-table th {
+        text-align: left;
+        padding: 10px;
+        background: #f8fafc;
+        border-bottom: 2px solid #e2e8f0;
+        color: #475569;
+        font-weight: 600;
+    }
+
+    .mapping-table td {
+        padding: 10px;
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .mapping-select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+    }
 </style>
 
 <main class="dashboard-container">
@@ -124,6 +281,34 @@
                         <label><input type="checkbox" class="col-toggle" data-col="7" checked> Status</label>
                     </div>
                 </div>
+
+                <!-- Export Dropdown -->
+                <div class="column-selector-wrapper no-print">
+                    <button type="button" class="btn-secondary" id="exportBtn" style="padding: 8px 15px;">
+                        <i class="fas fa-file-export"></i> Export
+                    </button>
+                    <div class="column-picker-dropdown" id="exportDropdown"
+                        style="left: auto; right: 0; min-width: 140px;">
+                        <div class="export-option" onclick="exportTable('customerTable', 'excel', 'All_Customers')">
+                            <i class="fas fa-file-excel" style="color: #16a34a;"></i> Excel
+                        </div>
+                        <div class="export-option" onclick="exportTable('customerTable', 'csv', 'All_Customers')">
+                            <i class="fas fa-file-csv" style="color: #0d9488;"></i> CSV
+                        </div>
+                        <div class="export-option" onclick="exportTable('customerTable', 'pdf', 'All_Customers', [8])">
+                            <i class="fas fa-file-pdf" style="color: #ef4444;"></i> PDF
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Import Button -->
+                <button type="button" class="btn-secondary no-print"
+                    onclick="document.getElementById('importFile').click()" style="padding: 8px 15px;">
+                    <i class="fas fa-file-import"></i> Import
+                </button>
+                <input type="file" id="importFile" accept=".xlsx, .xls" style="display: none;"
+                    onchange="openImportModal(this)">
+
                 <button type="button" onclick="window.print()" class="btn-secondary no-print"
                     style="padding: 8px 15px;">
                     <i class="fas fa-print"></i> Print
@@ -322,6 +507,35 @@
     </div>
 </main>
 
+<!-- Import Mapping Modal -->
+<div class="modal-overlay" id="importModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">Map Excel Columns</div>
+            <button class="btn-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div style="margin-bottom: 15px; color: #64748b; font-size: 0.9rem;">
+            Match your Excel headers (left) to the database fields (right). Unmatched columns will be ignored.
+        </div>
+        <table class="mapping-table">
+            <thead>
+                <tr>
+                    <th>Excel Header</th>
+                    <th>Database Field</th>
+                    <th>Preview (Row 1)</th>
+                </tr>
+            </thead>
+            <tbody id="mappingBody"></tbody>
+        </table>
+        <div style="margin-top: 25px; text-align: right; gap: 10px; display: flex; justify-content: flex-end;">
+            <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+            <button class="btn-collect" id="confirmImportBtn" onclick="processImport()">
+                Start Import
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const pickerBtn = document.getElementById('colPickerBtn');
@@ -375,6 +589,209 @@
             }
         }
     });
+</script>
+<script>
+    // Export Dropdown Logic
+    document.addEventListener('DOMContentLoaded', function () {
+        const exportBtn = document.getElementById('exportBtn');
+        const exportDropdown = document.getElementById('exportDropdown');
+
+        if (exportBtn && exportDropdown) {
+            exportBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                exportDropdown.classList.toggle('active');
+            });
+
+            document.addEventListener('click', () => {
+                exportDropdown.classList.remove('active');
+            });
+        }
+    });
+
+    // --- Interactive Import Logic ---
+
+    // DB Fields Config
+    const dbFields = [
+        { value: '', label: '-- Ignore --' },
+        { value: 'full_name', label: 'Customer Name *' },
+        { value: 'mobile_no', label: 'Mobile No *' },
+        { value: 'payment_id', label: 'Payment ID / User ID' },
+        { value: 'identification_no', label: 'Identification No' },
+        { value: 'email', label: 'Email' },
+        { value: 'district', label: 'District' },
+        { value: 'thana', label: 'Thana' },
+        { value: 'area', label: 'Area' },
+        { value: 'house_no', label: 'House/Flat/Address' },
+        { value: 'monthly_rent', label: 'Monthly Rent' },
+        { value: 'due_amount', label: 'Due Amount' },
+        { value: 'advance_amount', label: 'Advance Amount' },
+        { value: 'additional_charge', label: 'Additional Charge' },
+        { value: 'vat_percent', label: 'VAT (%)' },
+        { value: 'discount', label: 'Discount' },
+        { value: 'pppoe_name', label: 'PPPoE Username' },
+        { value: 'pppoe_password', label: 'PPPoE Password' },
+        { value: 'ip_address', label: 'IP Address' },
+        { value: 'mac_address', label: 'MAC Address' },
+        { value: 'package_id', label: 'Package Name' },
+        { value: 'status', label: 'Status' },
+        { value: 'comment', label: 'Comment/Remarks' }
+    ];
+
+    // Alias Map for Auto-Detection
+    const fieldAliases = {
+        'full_name': ['name', 'customer', 'client'],
+        'mobile_no': ['mobile', 'phone', 'cell', 'contact'],
+        'payment_id': ['payment', 'id', 'user_id', 'client_id'],
+        'email': ['mail', 'e-mail'],
+        'area': ['location', 'zone'],
+        'monthly_rent': ['rent', 'bill', 'price', 'amount'],
+        'due_amount': ['due', 'outstanding'],
+        'advance_amount': ['advance', 'prepaid'],
+        'additional_charge': ['additional', 'charge', 'extra'],
+        'vat_percent': ['vat', 'tax'],
+        'package_id': ['package', 'plan'],
+        'ip_address': ['ip', 'address'],
+        'pppoe_name': ['pppoe', 'username', 'user']
+    };
+
+    let globalImportData = [];
+    let globalHeaders = [];
+
+    function openImportModal(input) {
+        if (!input.files || input.files.length === 0) return;
+
+        importExcel(input, function (data, error) {
+            input.value = ''; // Reset for re-selection
+
+            if (error) {
+                alert('Error reading file: ' + error.message);
+                return;
+            }
+            if (!data || data.length === 0) {
+                alert('File is empty.');
+                return;
+            }
+
+            globalImportData = data;
+            // Extract headers from first row keys
+            globalHeaders = Object.keys(data[0]);
+
+            renderMappingTable();
+            document.getElementById('importModal').style.display = 'flex';
+        });
+    }
+
+    function closeModal() {
+        document.getElementById('importModal').style.display = 'none';
+        globalImportData = [];
+    }
+
+    function renderMappingTable() {
+        const tbody = document.getElementById('mappingBody');
+        tbody.innerHTML = '';
+
+        const firstRow = globalImportData[0];
+
+        globalHeaders.forEach((header, index) => {
+            const tr = document.createElement('tr');
+
+            // Auto-detect match
+            let matchedField = '';
+            const headerLower = header.toLowerCase().trim();
+
+            for (const [dbField, aliases] of Object.entries(fieldAliases)) {
+                // Check direct match
+                if (dbField === headerLower || dbField.replace('_', ' ') === headerLower) {
+                    matchedField = dbField;
+                    break;
+                }
+                // Check aliases
+                if (aliases.some(alias => headerLower.includes(alias))) {
+                    matchedField = dbField;
+                    break;
+                }
+            }
+
+            // Create Select Options
+            let optionsHtml = '';
+            dbFields.forEach(f => {
+                const selected = (f.value === matchedField) ? 'selected' : '';
+                optionsHtml += `<option value="${f.value}" ${selected}>${f.label}</option>`;
+            });
+
+            tr.innerHTML = `
+                <td><strong>${header}</strong></td>
+                <td>
+                    <select class="mapping-select" data-header="${header}">
+                        ${optionsHtml}
+                    </select>
+                </td>
+                <td style="color: #64748b; font-size: 0.9em;">
+                    ${firstRow[header] || '-'}
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function processImport() {
+        const selects = document.querySelectorAll('.mapping-select');
+        const map = {}; // Header -> DB Field
+
+        selects.forEach(sel => {
+            if (sel.value) {
+                map[sel.dataset.header] = sel.value;
+            }
+        });
+
+        // check requirements
+        const mappedValues = Object.values(map);
+        if (!mappedValues.includes('full_name') || !mappedValues.includes('mobile_no')) {
+            alert('Error: You must map "Customer Name" and "Mobile No" fields.');
+            return;
+        }
+
+        const btn = document.getElementById('confirmImportBtn');
+        const originalText = btn.innerText;
+        btn.innerText = 'Importing...';
+        btn.disabled = true;
+
+        // Transform Data
+        const transformedData = globalImportData.map(row => {
+            const newRow = {};
+            for (const [header, dbField] of Object.entries(map)) {
+                newRow[dbField] = row[header];
+            }
+            return newRow;
+        });
+
+        // Send to Server
+        fetch('<?= url('customer/import') ?>', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ customers: transformedData })
+        })
+            .then(res => res.json())
+            .then(response => {
+                if (response.success) {
+                    alert(response.message);
+                    location.reload();
+                } else {
+                    alert('Import Results:\n' + response.message);
+                    if (response.errors && response.errors.length > 0) {
+                        console.log(response.errors);
+                    }
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(err => {
+                alert('Server Error during import.');
+                console.error(err);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
+    }
 </script>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

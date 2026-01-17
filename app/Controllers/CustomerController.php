@@ -487,4 +487,214 @@ class CustomerController extends Controller
         }
         return $this->redirect('/customer');
     }
+
+    /**
+     * Bulk Import Customers (JSON).
+     * 
+     * @return void Sends JSON response.
+     */
+    public function import()
+    {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $json = file_get_contents('php://input');
+            $data = json_decode($json, true);
+            $customers = $data['customers'] ?? [];
+
+            if (empty($customers)) {
+                return $this->json(['status' => 'error', 'message' => 'No customer data provided.'], 400);
+            }
+
+            // Get default prefix
+            $prefixStmt = $this->db->query("SELECT id FROM id_prefixes WHERE is_default = TRUE LIMIT 1");
+            $prefixId = $prefixStmt->fetchColumn() ?: null;
+
+            // Fetch package map for name -> id lookup (case-insensitive)
+            $pkgs = $this->db->query("SELECT id, name FROM packages")->fetchAll(PDO::FETCH_ASSOC);
+            $pkgMap = [];
+            foreach ($pkgs as $p) {
+                $pkgMap[strtolower(trim($p['name']))] = $p['id'];
+            }
+
+            // --- Fuzzy Field Mapping (Excel Header -> DB Column) ---
+            // Only columns present in this map will be processed. Others are ignored.
+            $fieldMap = [
+                // Identity
+                'identification_no' => ['identification_no', 'nid', 'birth_cert', 'national_id'],
+                'full_name' => ['full_name', 'name', 'customer_name', 'customer', 'client_name'],
+                'mobile_no' => ['mobile_no', 'mobile', 'phone', 'contact', 'cell', 'phone_no'],
+                'alt_mobile_no' => ['alt_mobile_no', 'alt_mobile', 'alternative_mobile', 'backup_phone'],
+                'email' => ['email', 'mail', 'e-mail'],
+                'professional_detail' => ['professional_detail', 'profession', 'occupation', 'job'],
+
+                // Address
+                'district' => ['district', 'city'],
+                'thana' => ['thana', 'ps', 'police_station'],
+                'area' => ['area', 'zone', 'location'],
+                'building_name' => ['building_name', 'building'],
+                'floor' => ['floor', 'level'],
+                'tj_box' => ['tj_box', 'tj', 'box'],
+                'house_no' => ['house_no', 'house', 'flat', 'apt'],
+                'fiber_code' => ['fiber_code', 'fiber', 'cable_code'],
+                'onu_mac' => ['onu_mac', 'onu', 'onu_id'],
+                'group_name' => ['group_name', 'group', 'batch'],
+                'lazar_info' => ['lazar_info', 'lazar'],
+                'server_info' => ['server_info', 'server'],
+
+                // Tech
+                'pppoe_name' => ['pppoe_name', 'pppoe_user', 'user_id', 'username'],
+                'pppoe_password' => ['pppoe_password', 'password', 'pass', 'user_pass'],
+                'pppoe_profile' => ['pppoe_profile', 'profile'],
+                'ip_address' => ['ip_address', 'ip', 'static_ip'],
+                'mac_address' => ['mac_address', 'mac', 'device_mac'],
+                'bandwidth' => ['bandwidth', 'speed', 'mbps'],
+                'comment' => ['comment', 'remarks'],
+
+                // Billing
+                'package_id' => ['package_id', 'package', 'plan', 'internet_package'], // Logic handled separate
+                'monthly_rent' => ['monthly_rent', 'rent', 'bill', 'monthly_fee', 'price'],
+                'payment_id' => ['payment_id', 'payment_code', 'client_id', 'customer_id_manual'],
+                'due_amount' => ['due_amount', 'due', 'outstanding', 'previous_due'],
+                'additional_charge' => ['additional_charge', 'additional', 'extra_charge'],
+                'discount' => ['discount', 'discount_amount', 'less'],
+                'advance_amount' => ['advance_amount', 'advance', 'prepaid_amount'],
+                'vat_percent' => ['vat_percent', 'vat', 'tax'],
+                'total_amount' => ['total_amount', 'total', 'grand_total'],
+                'security_deposit' => ['security_deposit', 'deposit', 'security'],
+
+                // Others
+                'billing_type' => ['billing_type', 'type_billing', 'pay_type'], // Pre Paid / Post Paid
+                'connectivity_type' => ['connectivity_type', 'conn_type'], // Shared / Dedicated
+                'connection_type' => ['connection_type', 'cable_type'], // Fiber / Cat5
+                'client_type' => ['client_type'], // Home / Corporate
+                'distribution_point' => ['distribution_point', 'dp', 'dist_point'],
+                'description' => ['description', 'desc', 'details'],
+                'note' => ['note'],
+                'connected_by' => ['connected_by', 'agent', 'employee', 'technician'],
+                'reference_name' => ['reference_name', 'ref', 'reference'],
+                'status' => ['status', 'state'] // pending/active/etc
+            ];
+
+            $createdCount = 0;
+            $updatedCount = 0;
+            $errors = [];
+
+            foreach ($customers as $index => $row) {
+                // ... (previous logic for mapping) ...
+                // Re-implementing logic inside loop to ensure scope access or use existing vars
+                // Actually, due to replace_file_content scope, need to be careful.
+                // Re-writing the loop inner part properly:
+
+                $dbRow = [];
+                $rowLower = array_change_key_case($row, CASE_LOWER);
+
+                // 1. Map Fields
+                foreach ($fieldMap as $dbCol => $aliases) {
+                    $foundValue = null;
+                    foreach ($aliases as $alias) {
+                        if (array_key_exists($alias, $rowLower)) {
+                            $foundValue = $rowLower[$alias];
+                            break;
+                        }
+                    }
+                    if ($foundValue !== null && $foundValue !== '') {
+                        $dbRow[$dbCol] = $foundValue;
+                    }
+                }
+
+                // 2. Validate
+                // Note: Only validate name/mobile if we are creating new. 
+                // But for matching we need mobile.
+
+                // Fallback attempt for mobile/name in case mapping missed (redundant but safe)
+                $mobile = $dbRow['mobile_no'] ?? $rowLower['mobile_no'] ?? $rowLower['mobile'] ?? null;
+                if (!$mobile) {
+                    $errors[] = "Row " . ($index + 1) . ": Skipped (Mobile is required).";
+                    continue;
+                }
+                $dbRow['mobile_no'] = $mobile; // ensure set
+
+                // 3. Package Lookup
+                if (isset($dbRow['package_id']) && !is_numeric($dbRow['package_id'])) {
+                    $pkgName = strtolower(trim($dbRow['package_id']));
+                    $dbRow['package_id'] = $pkgMap[$pkgName] ?? null;
+                }
+
+                // 4. Defaults for New Records Only (Applied later if INSERT)
+                $dbRow['prefix_id'] = $prefixId;
+
+                // 5. Check Existence
+                $checkStmt = $this->db->prepare("SELECT id FROM customers WHERE mobile_no = ?");
+                $checkStmt->execute([$mobile]);
+                $existingId = $checkStmt->fetchColumn();
+
+                try {
+                    if ($existingId) {
+                        // UPDATE Logic
+                        // Only update fields present in $dbRow (except mobile).
+                        unset($dbRow['mobile_no']); // Don't update unique key
+
+                        if (empty($dbRow)) {
+                            // Nothing to update
+                            continue;
+                        }
+
+                        $updateParts = [];
+                        $params = [];
+                        foreach ($dbRow as $col => $val) {
+                            $updateParts[] = "$col = ?";
+                            $params[] = $val;
+                        }
+                        $params[] = $existingId; // WHERE id = ?
+
+                        $sql = "UPDATE customers SET " . implode(', ', $updateParts) . " WHERE id = ?";
+                        $stmt = $this->db->prepare($sql);
+                        $stmt->execute($params);
+                        $updatedCount++;
+                    } else {
+                        // INSERT Logic
+                        if (empty($dbRow['full_name'])) {
+                            // Name only required for INSERT
+                            $errors[] = "Row " . ($index + 1) . ": Skipped (New customer requires Name).";
+                            continue;
+                        }
+
+                        // Apply Defaults for Insert
+                        if (!isset($dbRow['status']))
+                            $dbRow['status'] = 'active';
+                        $numericFields = ['monthly_rent', 'due_amount', 'additional_charge', 'discount', 'advance_amount', 'vat_percent', 'total_amount', 'security_deposit'];
+                        foreach ($numericFields as $field) {
+                            if (!isset($dbRow[$field]))
+                                $dbRow[$field] = 0;
+                        }
+
+                        $cols = array_keys($dbRow);
+                        $placeholders = implode(',', array_fill(0, count($cols), '?'));
+                        $colNames = implode(',', $cols);
+
+                        $sql = "INSERT INTO customers ($colNames) VALUES ($placeholders)";
+                        $stmt = $this->db->prepare($sql);
+                        $stmt->execute(array_values($dbRow));
+                        $createdCount++;
+                    }
+                } catch (\Exception $e) {
+                    $errors[] = "Row " . ($index + 1) . ": " . $e->getMessage();
+                }
+            }
+
+            $msg = "Import Complete. Created: $createdCount. Updated: $updatedCount.";
+            if (count($errors) > 0) {
+                $msg .= " Failed: " . count($errors);
+            }
+
+            return $this->json([
+                'success' => true,
+                'status' => 'success',
+                'message' => $msg,
+                'created' => $createdCount,
+                'updated' => $updatedCount,
+                'failed' => count($errors),
+                'errors' => $errors
+            ]);
+        }
+    }
 }

@@ -1,4 +1,5 @@
 <?php include __DIR__ . '/../partials/header.php'; ?>
+<?php include __DIR__ . '/../partials/export_scripts.php'; ?>
 
 <?php
 /**
@@ -46,6 +47,29 @@ function sortIcon($field, $currentSort, $currentOrder)
                         <label><input type="checkbox" class="col-toggle" data-col="5" checked> Date</label>
                     </div>
                 </div>
+
+                <!-- Export Dropdown -->
+                <div class="column-selector-wrapper no-print">
+                    <button type="button" class="btn-secondary" id="exportBtn">
+                        <i class="fas fa-file-export"></i> Export
+                    </button>
+                    <div class="column-picker-dropdown" id="exportDropdown"
+                        style="left: auto; right: 0; min-width: 140px;">
+                        <a href="#" class="export-option"
+                            onclick="exportTable('complainTable', 'excel', 'Complain_List')">
+                            <i class="fas fa-file-excel" style="color: #16a34a;"></i> Excel
+                        </a>
+                        <a href="#" class="export-option"
+                            onclick="exportTable('complainTable', 'csv', 'Complain_List')">
+                            <i class="fas fa-file-csv" style="color: #0d9488;"></i> CSV
+                        </a>
+                        <a href="#" class="export-option"
+                            onclick="exportTable('complainTable', 'pdf', 'Complain_List', [6])">
+                            <i class="fas fa-file-pdf" style="color: #ef4444;"></i> PDF
+                        </a>
+                    </div>
+                </div>
+
                 <button onclick="window.print()" class="btn-secondary"><i class="fas fa-print"></i> Print</button>
                 <a href="<?= url('complain-list/create') ?>" class="btn-primary"><i class="fas fa-plus"></i> New
                     Complain</a>
@@ -53,7 +77,7 @@ function sortIcon($field, $currentSort, $currentOrder)
         </div>
 
         <div class="table-container">
-            <table class="data-table selectable-table">
+            <table id="complainTable" class="data-table selectable-table">
                 <thead>
                     <tr>
                         <th width="8%"><a href="<?= sortLink('id', $sort, $order, $q) ?>" class="table-sort-link">ID
@@ -413,6 +437,24 @@ function sortIcon($field, $currentSort, $currentOrder)
                     }
                 }
             }
+        }
+    });
+</script>
+<script>
+    // Export Dropdown Logic
+    document.addEventListener('DOMContentLoaded', function () {
+        const exportBtn = document.getElementById('exportBtn');
+        const exportDropdown = document.getElementById('exportDropdown');
+
+        if (exportBtn && exportDropdown) {
+            exportBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                exportDropdown.classList.toggle('active');
+            });
+
+            document.addEventListener('click', () => {
+                exportDropdown.classList.remove('active');
+            });
         }
     });
 </script>

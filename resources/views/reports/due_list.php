@@ -1,4 +1,5 @@
 <?php include __DIR__ . '/../partials/header.php'; ?>
+<?php include __DIR__ . '/../partials/export_scripts.php'; ?>
 
 <style>
     .report-card {
@@ -332,6 +333,26 @@
                         <label><input type="checkbox" class="col-toggle" data-col="5" checked> Due Amount</label>
                     </div>
                 </div>
+
+                <!-- Export Dropdown -->
+                <div class="column-selector-wrapper no-print">
+                    <button type="button" class="btn-print" id="exportBtn">
+                        <i class="fas fa-file-export"></i> Export
+                    </button>
+                    <div class="column-picker-dropdown" id="exportDropdown"
+                        style="left: auto; right: 0; min-width: 140px;">
+                        <div class="export-option" onclick="exportTable('dueTable', 'excel', 'Due_List_Report')">
+                            <i class="fas fa-file-excel" style="color: #16a34a;"></i> Excel
+                        </div>
+                        <div class="export-option" onclick="exportTable('dueTable', 'csv', 'Due_List_Report')">
+                            <i class="fas fa-file-csv" style="color: #0d9488;"></i> CSV
+                        </div>
+                        <div class="export-option" onclick="exportTable('dueTable', 'pdf', 'Due_List_Report', [6])">
+                            <i class="fas fa-file-pdf" style="color: #ef4444;"></i> PDF
+                        </div>
+                    </div>
+                </div>
+
                 <button onclick="window.print()" class="btn-print">
                     <i class="fas fa-print"></i> Print Report
                 </button>
@@ -402,7 +423,7 @@
 
         <div class="table-wrapper">
             <div style="overflow-x: auto; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <table class="custom-table">
+                <table id="dueTable" class="custom-table">
                     <thead>
                         <tr>
                             <th width="10%">ID</th>
