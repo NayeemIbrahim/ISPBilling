@@ -34,7 +34,7 @@ function sortIcon($field, $currentSort, $currentOrder)
                             value="<?= htmlspecialchars($q ?? '') ?>">
                     </div>
                 </form>
-                <div class="column-selector-wrapper">
+                <div class="column-selector-wrapper" style="display:none;">
                     <button type="button" class="btn-secondary" id="colPickerBtn">
                         <i class="fas fa-columns"></i> Columns
                     </button>
@@ -80,18 +80,13 @@ function sortIcon($field, $currentSort, $currentOrder)
             <table id="complainTable" class="data-table selectable-table">
                 <thead>
                     <tr>
-                        <th width="8%"><a href="<?= sortLink('id', $sort, $order, $q) ?>" class="table-sort-link">ID
-                                <?= sortIcon('id', $sort, $order) ?></a></th>
-                        <th width="22%"><a href="<?= sortLink('full_name', $sort, $order, $q) ?>"
-                                class="table-sort-link">Customer Info <?= sortIcon('full_name', $sort, $order) ?></a>
-                        </th>
-                        <th width="20%"><a href="<?= sortLink('complain_title', $sort, $order, $q) ?>"
-                                class="table-sort-link">Issue <?= sortIcon('complain_title', $sort, $order) ?></a></th>
-                        <th width="15%">Assigned To</th>
-                        <th width="12%"><a href="<?= sortLink('status', $sort, $order, $q) ?>"
-                                class="table-sort-link">Status <?= sortIcon('status', $sort, $order) ?></a></th>
-                        <th width="13%"><a href="<?= sortLink('created_at', $sort, $order, $q) ?>"
-                                class="table-sort-link">Date <?= sortIcon('created_at', $sort, $order) ?></a></th>
+                        <?php foreach ($tableColumns as $col): ?>
+                            <?php $key = $col['key'];
+                            $label = $col['label']; ?>
+                            <th><a href="<?= sortLink($key, $sort, $order, $q) ?>" class="table-sort-link">
+                                    <?= htmlspecialchars($label) ?>     <?= sortIcon($key, $sort, $order) ?>
+                                </a></th>
+                        <?php endforeach; ?>
                         <th width="10%" class="no-print">Actions</th>
                     </tr>
                 </thead>
@@ -99,46 +94,55 @@ function sortIcon($field, $currentSort, $currentOrder)
                     <?php if (!empty($complains)): ?>
                         <?php foreach ($complains as $complain): ?>
                             <tr>
-                                <td>#<?= $complain['id'] ?></td>
-                                <td>
-                                    <strong><?= htmlspecialchars($complain['full_name']) ?></strong><br>
-                                    <small class="text-muted"><?= htmlspecialchars($complain['area']) ?></small><br>
-                                    <small class="text-muted"><?= htmlspecialchars($complain['mobile_no']) ?></small>
-                                </td>
-                                <td>
-                                    <span
-                                        class="badge badge-gray"><?= htmlspecialchars($complain['complain_title']) ?></span><br>
-                                    <small class="description-small"><?= htmlspecialchars($complain['description']) ?></small>
-                                </td>
-                                <td>
-                                    <div class="assigned-chips">
-                                        <?php
-                                        $assignedIds = json_decode($complain['assigned_to'] ?? '[]', true);
-                                        if ($assignedIds) {
-                                            foreach ($assignedIds as $eid) {
-                                                $name = $employees[$eid] ?? 'Unknown';
-                                                echo "<span class='employee-chip'>$name</span>";
-                                            }
-                                        } else {
-                                            echo '<span class="unassigned-text">Unassigned</span>';
-                                        }
-                                        ?>
-                                    </div>
-                                </td>
-                                <td>
-                                    <?php
-                                    $statusBy = $complain['status'];
-                                    $statusClass = 'status-pending';
-                                    if ($statusBy == 'In Progress')
-                                        $statusClass = 'status-progress';
-                                    if ($statusBy == 'Resolved')
-                                        $statusClass = 'status-resolved';
-                                    ?>
-                                    <span class="status-indicator <?= $statusClass ?>">
-                                        <i class="fas fa-circle"></i> <?= $statusBy ?>
-                                    </span>
-                                </td>
-                                <td><?= date('d/m/Y h:i A', strtotime($complain['created_at'])) ?></td>
+                                <?php foreach ($tableColumns as $col): ?>
+                                    <?php $key = $col['key']; ?>
+                                    <td>
+                                        <?php if ($key === 'id'): ?>
+                                            #<?= $complain['id'] ?>
+                                        <?php elseif ($key === 'customer_info'): ?>
+                                            <strong><?= htmlspecialchars($complain['full_name']) ?></strong><br>
+                                            <small class="text-muted"><?= htmlspecialchars($complain['area']) ?></small><br>
+                                            <small class="text-muted"><?= htmlspecialchars($complain['mobile_no']) ?></small>
+                                        <?php elseif ($key === 'complain_title'): ?>
+                                            <span class="badge badge-gray"><?= htmlspecialchars($complain['complain_title']) ?></span>
+                                            <?php if (!empty($complain['description'])): ?>
+                                                <br><small
+                                                    class="description-small"><?= htmlspecialchars(mb_strimwidth($complain['description'], 0, 50, '...')) ?></small>
+                                            <?php endif; ?>
+                                        <?php elseif ($key === 'assigned_to'): ?>
+                                            <div class="assigned-chips">
+                                                <?php
+                                                $assignedIds = json_decode($complain['assigned_to'] ?? '[]', true);
+                                                if ($assignedIds) {
+                                                    foreach ($assignedIds as $eid) {
+                                                        $name = $employees[$eid] ?? 'Unknown';
+                                                        echo "<span class='employee-chip'>$name</span>";
+                                                    }
+                                                } else {
+                                                    echo '<span class="unassigned-text">Unassigned</span>';
+                                                }
+                                                ?>
+                                            </div>
+                                        <?php elseif ($key === 'status'): ?>
+                                            <?php
+                                            $statusBy = $complain['status'];
+                                            $statusClass = 'status-pending';
+                                            if ($statusBy == 'In Progress')
+                                                $statusClass = 'status-progress';
+                                            if ($statusBy == 'Resolved')
+                                                $statusClass = 'status-resolved';
+                                            ?>
+                                            <span class="status-indicator <?= $statusClass ?>">
+                                                <i class="fas fa-circle"></i> <?= $statusBy ?>
+                                            </span>
+                                        <?php elseif ($key === 'created_at'): ?>
+                                            <?= date('d/m/Y h:i A', strtotime($complain['created_at'])) ?>
+                                        <?php else: ?>
+                                            <?= htmlspecialchars($complain[$key] ?? '-') ?>
+                                        <?php endif; ?>
+                                    </td>
+                                <?php endforeach; ?>
+
                                 <td class="no-print">
                                     <div class="action-buttons">
                                         <a href="<?= url('complain-list/edit/' . $complain['id']) ?>"
@@ -158,7 +162,8 @@ function sortIcon($field, $currentSort, $currentOrder)
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="7" style="text-align:center; padding: 40px;">No complaints found.</td>
+                            <td colspan="<?= count($tableColumns) + 1 ?>" style="text-align:center; padding: 40px;">No
+                                complaints found.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>

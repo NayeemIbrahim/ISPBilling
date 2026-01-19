@@ -75,6 +75,7 @@ $path = $data['path'] ?? '';
                 <div class="dropdown-content">
                     <a href="#">OLT Setup</a>
                     <a href="#">Address Setup</a>
+                    <a href="<?= url('setup/column-preview') ?>">Column Preview Setup</a>
                     <a href="#">Print Preview Setup</a>
                     <a href="<?= url('complain') ?>">Complain Setup</a>
                     <a href="<?= url('employee') ?>">Employee Setup</a>
@@ -82,14 +83,6 @@ $path = $data['path'] ?? '';
                     <a href="#">Payment Settings Setup</a>
                     <a href="#">SMS Setup</a>
                     <a href="<?= url('prefix') ?>">ID Prefix Setup</a>
-                </div>
-            </li>
-
-            <li class="dropdown">
-                <a href="#">Admin</a>
-                <div class="dropdown-content">
-                    <a href="#">Employee List</a>
-                    <a href="#">Package Settings</a>
                 </div>
             </li>
 

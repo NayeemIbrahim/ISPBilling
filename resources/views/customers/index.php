@@ -266,7 +266,8 @@
                         class="no-print">Clear</a>
                 <?php endif; ?>
 
-                <div class="column-selector-wrapper no-print">
+                <!-- Export Dropdown -->
+                <div class="column-selector-wrapper no-print" style="display:none;">
                     <button type="button" class="btn-secondary" id="colPickerBtn" style="padding: 8px 15px;">
                         <i class="fas fa-columns"></i> Columns
                     </button>
@@ -339,63 +340,21 @@
             <table class="data-table" id="customerTable">
                 <thead>
                     <tr>
-                        <th class="sort-header" onclick="location.href='<?= sortUrl('id', $sort, $order) ?>'">
-                            ID
-                            <div class="sort-arrows">
-                                <i class="fas fa-caret-up <?= arrowClass('id', 'ASC', $sort, $order) ?>"></i>
-                                <i class="fas fa-caret-down <?= arrowClass('id', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header" onclick="location.href='<?= sortUrl('full_name', $sort, $order) ?>'">
-                            Name
-                            <div class="sort-arrows">
-                                <i class="fas fa-caret-up <?= arrowClass('full_name', 'ASC', $sort, $order) ?>"></i>
-                                <i class="fas fa-caret-down <?= arrowClass('full_name', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header" onclick="location.href='<?= sortUrl('mobile_no', $sort, $order) ?>'">
-                            Mobile
-                            <div class="sort-arrows">
-                                <i class="fas fa-caret-up <?= arrowClass('mobile_no', 'ASC', $sort, $order) ?>"></i>
-                                <i class="fas fa-caret-down <?= arrowClass('mobile_no', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header" onclick="location.href='<?= sortUrl('area', $sort, $order) ?>'">
-                            Area
-                            <div class="sort-arrows">
-                                <i class="fas fa-caret-up <?= arrowClass('area', 'ASC', $sort, $order) ?>"></i>
-                                <i class="fas fa-caret-down <?= arrowClass('area', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header" onclick="location.href='<?= sortUrl('package_name', $sort, $order) ?>'">
-                            Package
-                            <div class="sort-arrows">
-                                <i class="fas fa-caret-up <?= arrowClass('package_name', 'ASC', $sort, $order) ?>"></i>
-                                <i
-                                    class="fas fa-caret-down <?= arrowClass('package_name', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header" onclick="location.href='<?= sortUrl('payment_id', $sort, $order) ?>'">
-                            Payment ID
-                            <div class="sort-arrows">
-                                <i class="fas fa-caret-up <?= arrowClass('payment_id', 'ASC', $sort, $order) ?>"></i>
-                                <i class="fas fa-caret-down <?= arrowClass('payment_id', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header" onclick="location.href='<?= sortUrl('due_amount', $sort, $order) ?>'">
-                            Due
-                            <div class="sort-arrows">
-                                <i class="fas fa-caret-up <?= arrowClass('due_amount', 'ASC', $sort, $order) ?>"></i>
-                                <i class="fas fa-caret-down <?= arrowClass('due_amount', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header" onclick="location.href='<?= sortUrl('status', $sort, $order) ?>'">
-                            Status
-                            <div class="sort-arrows">
-                                <i class="fas fa-caret-up <?= arrowClass('status', 'ASC', $sort, $order) ?>"></i>
-                                <i class="fas fa-caret-down <?= arrowClass('status', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
+                        <?php foreach ($tableColumns as $col): ?>
+                            <?php
+                            $key = $col['key'];
+                            $label = $col['label'];
+                            // Determine if sortable (most are, status is special case in sortUrl logic?)
+                            // The sortUrl helper in this view uses the key directly.
+                            ?>
+                            <th class="sort-header" onclick="location.href='<?= sortUrl($key, $sort, $order) ?>'">
+                                <?= htmlspecialchars($label) ?>
+                                <div class="sort-arrows">
+                                    <i class="fas fa-caret-up <?= arrowClass($key, 'ASC', $sort, $order) ?>"></i>
+                                    <i class="fas fa-caret-down <?= arrowClass($key, 'DESC', $sort, $order) ?>"></i>
+                                </div>
+                            </th>
+                        <?php endforeach; ?>
                         <th class="no-print">Actions</th>
                     </tr>
                 </thead>
@@ -403,38 +362,55 @@
                     <?php if (!empty($customers)): ?>
                         <?php foreach ($customers as $customer): ?>
                             <tr>
-                                <td><?= htmlspecialchars($customer['prefix_code'] ?? '') ?><?= $customer['id'] ?></td>
-                                <td>
-                                    <strong><?= $customer['full_name'] ?></strong><br>
-                                    <small style="color:#666"><?= $customer['company_name'] ?></small>
-                                </td>
-                                <td><?= $customer['mobile_no'] ?></td>
-                                <td><?= $customer['area'] ?></td>
-                                <td><?= $customer['package_name'] ?></td>
-                                <td><?= $customer['payment_id'] ?? '-' ?></td>
-                                <td><?= $customer['due_amount'] ?></td>
-                                <td>
-                                    <?php
-                                    $statusVal = $customer['status'] ?? 'active';
-                                    $color = 'green';
-                                    $label = 'Active';
+                                <?php foreach ($tableColumns as $col): ?>
+                                    <?php $key = $col['key']; ?>
+                                    <td>
+                                        <?php if ($key === 'id'): ?>
+                                            <?= htmlspecialchars($customer['prefix_code'] ?? '') ?>                <?= $customer['id'] ?>
+                                        <?php elseif ($key === 'full_name'): ?>
+                                            <strong><?= htmlspecialchars($customer['full_name']) ?></strong><br>
+                                            <small style="color:#666"><?= htmlspecialchars($customer['company_name'] ?? '') ?></small>
+                                        <?php elseif ($key === 'status'): ?>
+                                            <?php
+                                            $statusVal = $customer['status'] ?? 'active';
+                                            $color = 'green';
+                                            $label = 'Active';
+                                            if ($statusVal === 'pending') {
+                                                $color = 'orange';
+                                                $label = 'Pending';
+                                            } elseif ($statusVal === 'inactive') {
+                                                $color = 'red';
+                                                $label = 'Inactive';
+                                            } elseif ($statusVal === 'temp_disable') {
+                                                $color = 'gray';
+                                                $label = 'T. Disable';
+                                            } elseif ($statusVal === 'free') {
+                                                $color = 'blue';
+                                                $label = 'Free';
+                                            }
+                                            ?>
+                                            <span style="color:<?= $color ?>; font-weight:bold;"><?= $label ?></span>
 
-                                    if ($statusVal === 'pending') {
-                                        $color = 'orange';
-                                        $label = 'Pending';
-                                    } elseif ($statusVal === 'inactive') {
-                                        $color = 'red';
-                                        $label = 'Inactive';
-                                    } elseif ($statusVal === 'temp_disable') {
-                                        $color = 'gray';
-                                        $label = 'T. Disable';
-                                    } elseif ($statusVal === 'free') {
-                                        $color = 'blue';
-                                        $label = 'Free';
-                                    }
-                                    ?>
-                                    <span style="color:<?= $color ?>; font-weight:bold;"><?= $label ?></span>
-                                </td>
+                                        <?php elseif (in_array($key, ['monthly_rent', 'due_amount', 'total_amount', 'additional_charge', 'discount', 'advance_amount', 'vat_percent', 'security_deposit'])): ?>
+                                            <?= number_format($customer[$key] ?? 0, 2) ?>
+
+                                        <?php elseif (in_array($key, ['created_at', 'connection_date', 'expire_date', 'entry_date'])): ?>
+                                            <?php
+                                            $dateVal = $customer[$key === 'entry_date' ? 'created_at' : $key] ?? null;
+                                            echo $dateVal ? date('d M Y', strtotime($dateVal)) : '-';
+                                            ?>
+
+                                        <?php elseif ($key === 'note' || $key === 'comment'): ?>
+                                            <span title="<?= htmlspecialchars($customer[$key] ?? '') ?>">
+                                                <?= htmlspecialchars(mb_strimwidth($customer[$key] ?? '', 0, 20, "...")) ?>
+                                            </span>
+
+                                        <?php else: ?>
+                                            <?= htmlspecialchars($customer[$key] ?? '-') ?>
+                                        <?php endif; ?>
+                                    </td>
+                                <?php endforeach; ?>
+
                                 <td class="no-print">
                                     <a href="<?= url('customer/show/' . $customer['id']) ?>" class="btn-table"
                                         style="background:#3b82f6; text-decoration:none;">View/Edit</a>
@@ -447,7 +423,8 @@
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="9" style="text-align:center;">No customers found.</td>
+                            <td colspan="<?= count($tableColumns) + 1 ?>" style="text-align:center;">No customers found.
+                            </td>
                         </tr>
                     <?php endif; ?>
                 </tbody>

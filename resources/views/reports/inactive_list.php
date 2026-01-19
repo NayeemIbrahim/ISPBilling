@@ -197,7 +197,11 @@
                 <button onclick="processAutoDisable()" class="btn-action-main btn-disable">
                     <i class="fas fa-bolt"></i> Run Auto-Disable
                 </button>
-                <div class="column-selector-wrapper no-print">
+                <a href="<?= url('setup/column-preview?table=inactive_list') ?>" class="btn-action-main btn-print"
+                    style="text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-columns"></i> Columns
+                </a>
+                <div class="column-selector-wrapper no-print" style="display:none;">
                     <button type="button" class="btn-action-main btn-print" id="colPickerBtn">
                         <i class="fas fa-columns"></i> Columns
                     </button>
@@ -221,13 +225,10 @@
                 <table class="custom-table">
                     <thead>
                         <tr>
-                            <th width="12%">ID</th>
-                            <th width="25%">Customer</th>
-                            <th width="15%">Mobile</th>
-                            <th width="12%">Status</th>
-                            <th width="15%">Expiry Date</th>
-                            <th width="10%">Manual?</th>
-                            <th width="11%" class="no-print">Action</th>
+                            <?php foreach ($tableColumns as $col): ?>
+                                <th><?= htmlspecialchars($col['label']) ?></th>
+                            <?php endforeach; ?>
+                            <th class="no-print" width="10%">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -239,28 +240,40 @@
                                     $statusClass = 'expired';
                                 ?>
                                 <tr>
-                                    <td><span
-                                            class="col-id"><?= htmlspecialchars($c['prefix_code'] ?? '') ?><?= $c['id'] ?></span>
-                                    </td>
-                                    <td>
-                                        <div class="user-info">
-                                            <span class="user-name"><?= htmlspecialchars($c['full_name']) ?></span>
-                                            <span
-                                                class="user-sub"><?= htmlspecialchars($c['pppoe_name'] ?? 'No PPPoE') ?></span>
-                                        </div>
-                                    </td>
-                                    <td><?= htmlspecialchars($c['mobile_no']) ?></td>
-                                    <td>
-                                        <span class="badge <?= $statusClass ?>">
-                                            <?= ($statusClass == 'expired') ? 'Expired' : ucfirst($c['status']) ?>
-                                        </span>
-                                    </td>
-                                    <td style="<?= $isExpired ? 'color: #ef4444; font-weight: 600;' : '' ?>">
-                                        <?= $c['expire_date'] ? date('d/m/Y', strtotime($c['expire_date'])) : 'N/A' ?>
-                                    </td>
-                                    <td>
-                                        <?= ($c['auto_disable'] == 1) ? '<span style="color: #10b981;" title="Auto-disable enabled"><i class="fas fa-robot"></i></span>' : '<span style="color: #94a3b8;" title="Manual only"><i class="fas fa-user-cog"></i></span>' ?>
-                                    </td>
+                                    <?php foreach ($tableColumns as $col): ?>
+                                        <?php if ($col['key'] === 'id'): ?>
+                                            <td><span
+                                                    class="col-id"><?= htmlspecialchars($c['prefix_code'] ?? '') ?><?= $c['id'] ?></span>
+                                            </td>
+                                        <?php elseif ($col['key'] === 'customer_info'): ?>
+                                            <td>
+                                                <div class="user-info">
+                                                    <span class="user-name"><?= htmlspecialchars($c['full_name']) ?></span>
+                                                    <span
+                                                        class="user-sub"><?= htmlspecialchars($c['pppoe_name'] ?? 'No PPPoE') ?></span>
+                                                </div>
+                                            </td>
+                                        <?php elseif ($col['key'] === 'mobile_no'): ?>
+                                            <td><?= htmlspecialchars($c['mobile_no']) ?></td>
+                                        <?php elseif ($col['key'] === 'status'): ?>
+                                            <td>
+                                                <span class="badge <?= $statusClass ?>">
+                                                    <?= ($statusClass == 'expired') ? 'Expired' : ucfirst($c['status']) ?>
+                                                </span>
+                                            </td>
+                                        <?php elseif ($col['key'] === 'expire_date'): ?>
+                                            <td style="<?= $isExpired ? 'color: #ef4444; font-weight: 600;' : '' ?>">
+                                                <?= $c['expire_date'] ? date('d/m/Y', strtotime($c['expire_date'])) : 'N/A' ?>
+                                            </td>
+                                        <?php elseif ($col['key'] === 'manual_auto_disable'): ?>
+                                            <td>
+                                                <?= ($c['auto_disable'] == 1) ? '<span style="color: #10b981;" title="Auto-disable enabled"><i class="fas fa-robot"></i></span>' : '<span style="color: #94a3b8;" title="Manual only"><i class="fas fa-user-cog"></i></span>' ?>
+                                            </td>
+                                        <?php else: ?>
+                                            <td><?= htmlspecialchars($c[$col['key']] ?? '') ?></td>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+
                                     <td>
                                         <a href="<?= url('customer/show/' . $c['id']) ?>" class="btn-view">
                                             <i class="fas fa-eye"></i> View
@@ -270,7 +283,8 @@
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="7" style="text-align: center; padding: 40px; color: #64748b;">
+                                <td colspan="<?= count($tableColumns) + 1 ?>"
+                                    style="text-align: center; padding: 40px; color: #64748b;">
                                     No inactive or expired customers found.
                                 </td>
                             </tr>
@@ -303,7 +317,7 @@
             });
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const pickerBtn = document.getElementById('colPickerBtn');
         const pickerDropdown = document.getElementById('colPickerDropdown');
         const toggles = document.querySelectorAll('.col-toggle');
@@ -334,7 +348,7 @@
                 toggleColumn(colIndex, false);
             }
 
-            checkbox.addEventListener('change', function() {
+            checkbox.addEventListener('change', function () {
                 toggleColumn(colIndex, this.checked);
                 preferences[colIndex] = this.checked;
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));

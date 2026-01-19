@@ -98,6 +98,27 @@ class ComplainListController extends Controller
         $empStmt = $this->db->query("SELECT id, name FROM employees");
         $employees = $empStmt->fetchAll(PDO::FETCH_KEY_PAIR); // [id => name]
 
+        // Fetch Table Columns
+        $colStmt = $this->db->prepare("SELECT columns_json FROM table_settings WHERE table_name = 'complain_list'");
+        $colStmt->execute();
+        $colJson = $colStmt->fetchColumn();
+
+        $tableColumns = [];
+        if ($colJson) {
+            $decoded = json_decode($colJson, true);
+            $tableColumns = array_filter($decoded, fn($c) => !empty($c['enabled']));
+        } else {
+            // Defaults
+            $tableColumns = [
+                ['key' => 'id', 'label' => 'ID', 'enabled' => true],
+                ['key' => 'customer_info', 'label' => 'Customer Info', 'enabled' => true],
+                ['key' => 'complain_title', 'label' => 'Issue', 'enabled' => true],
+                ['key' => 'assigned_to', 'label' => 'Assigned To', 'enabled' => true],
+                ['key' => 'status', 'label' => 'Status', 'enabled' => true],
+                ['key' => 'created_at', 'label' => 'Date', 'enabled' => true],
+            ];
+        }
+
         $this->view('complains/index', [
             'title' => 'Complain List',
             'path' => '/complain-list',
@@ -105,7 +126,8 @@ class ComplainListController extends Controller
             'employees' => $employees,
             'q' => $q,
             'sort' => $sort,
-            'order' => $order
+            'order' => $order,
+            'tableColumns' => $tableColumns
         ]);
     }
 

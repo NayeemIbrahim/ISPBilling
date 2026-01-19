@@ -310,7 +310,7 @@
                             style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #64748b; font-size: 0.875rem;"></i>
                     </div>
                 </form>
-                <div class="column-selector-wrapper no-print">
+                <div class="column-selector-wrapper no-print" style="display:none;">
                     <button type="button" class="btn-print" id="colPickerBtn">
                         <i class="fas fa-columns"></i> Columns
                     </button>
@@ -429,60 +429,81 @@
                 <table class="custom-table">
                     <thead>
                         <tr>
-                            <th width="12%">Date</th>
-                            <th width="12%">Payment ID</th>
-                            <th width="12%">ID</th>
-                            <th width="20%">Customer</th>
-                            <th width="14%">Collected By</th>
-                            <th width="12%" style="text-align: right;">Amount</th>
-                            <th width="8%" style="text-align: center;">Status</th>
-                            <th width="10%" style="text-align: right;">Expiry Date</th>
+                            <?php foreach ($tableColumns as $col): ?>
+                                <?php
+                                $key = $col['key'];
+                                $label = $col['label'];
+                                $align = 'left';
+                                if (in_array($key, ['amount', 'next_expire_date']))
+                                    $align = 'right';
+                                if (in_array($key, ['status']))
+                                    $align = 'center';
+                                ?>
+                                <th style="text-align: <?= $align ?>;"><?= htmlspecialchars($label) ?></th>
+                            <?php endforeach; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!empty($collections)): ?>
                             <?php foreach ($collections as $col): ?>
                                 <tr>
-                                    <td>
-                                        <div style="font-weight: 500;"><?= date('d/m/Y', strtotime($col['collection_date'])) ?>
-                                        </div>
-                                        <div style="font-size: 0.75rem; color: #94a3b8;">
-                                            <?= date('h:i A', strtotime($col['collection_date'])) ?>
-                                        </div>
-                                    </td>
-                                    <td><span
-                                            class="col-id"><?= htmlspecialchars($col['payment_id'] ?? $col['transaction_id']) ?></span>
-                                    </td>
-                                    <td><span
-                                            class="col-id"><?= htmlspecialchars($col['prefix_code'] ?? '') ?><?= $col['customer_id'] ?></span>
-                                    </td>
-                                    <td>
-                                        <div class="user-info">
-                                            <span class="user-name"><?= htmlspecialchars($col['full_name']) ?></span>
-                                            <span class="user-sub"><i class="fas fa-phone-alt"
-                                                    style="font-size: 0.6rem; opacity: 0.7;"></i>
-                                                <?= htmlspecialchars($col['mobile_no']) ?></span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div class="user-info">
-                                            <span class="user-name"
-                                                style="font-size: 0.85rem;"><?= htmlspecialchars($col['collected_by_name'] ?? 'System') ?></span>
-                                        </div>
-                                    </td>
-                                    <td class="col-amount"><?= number_format($col['amount'], 2) ?></td>
-                                    <td style="text-align: center;">
-                                        <span
-                                            class="status-badge status-<?= strtolower($col['status']) ?>"><?= ucfirst($col['status']) ?></span>
-                                    </td>
-                                    <td style="text-align: right; font-feature-settings: 'tnum';">
-                                        <?= $col['next_expire_date'] ? date('d/m/Y', strtotime($col['next_expire_date'])) : '<span style="color:#cbd5e1">-</span>' ?>
-                                    </td>
+                                    <?php foreach ($tableColumns as $colDef): ?>
+                                        <?php $key = $colDef['key']; ?>
+                                        <td>
+                                            <?php if ($key === 'collection_date'): ?>
+                                                <div style="font-weight: 500;"><?= date('d/m/Y', strtotime($col['collection_date'])) ?>
+                                                </div>
+                                                <div style="font-size: 0.75rem; color: #94a3b8;">
+                                                    <?= date('h:i A', strtotime($col['collection_date'])) ?>
+                                                </div>
+
+                                            <?php elseif ($key === 'payment_id'): ?>
+                                                <span
+                                                    class="col-id"><?= htmlspecialchars($col['payment_id'] ?? $col['transaction_id']) ?></span>
+
+                                            <?php elseif ($key === 'customer_id'): ?>
+                                                <span
+                                                    class="col-id"><?= htmlspecialchars($col['prefix_code'] ?? '') ?><?= $col['customer_id'] ?></span>
+
+                                            <?php elseif ($key === 'customer_name'): ?>
+                                                <div class="user-info">
+                                                    <span class="user-name"><?= htmlspecialchars($col['full_name']) ?></span>
+                                                    <span class="user-sub"><i class="fas fa-phone-alt"
+                                                            style="font-size: 0.6rem; opacity: 0.7;"></i>
+                                                        <?= htmlspecialchars($col['mobile_no']) ?></span>
+                                                </div>
+
+                                            <?php elseif ($key === 'collected_by'): ?>
+                                                <div class="user-info">
+                                                    <span class="user-name"
+                                                        style="font-size: 0.85rem;"><?= htmlspecialchars($col['collected_by_name'] ?? 'System') ?></span>
+                                                </div>
+
+                                            <?php elseif ($key === 'amount'): ?>
+                                                <div class="col-amount"><?= number_format($col['amount'], 2) ?></div>
+
+                                            <?php elseif ($key === 'status'): ?>
+                                                <div style="text-align: center;">
+                                                    <span
+                                                        class="status-badge status-<?= strtolower($col['status']) ?>"><?= ucfirst($col['status']) ?></span>
+                                                </div>
+
+                                            <?php elseif ($key === 'next_expire_date'): ?>
+                                                <div style="text-align: right; font-feature-settings: 'tnum';">
+                                                    <?= $col['next_expire_date'] ? date('d/m/Y', strtotime($col['next_expire_date'])) : '<span style="color:#cbd5e1">-</span>' ?>
+                                                </div>
+
+                                            <?php else: ?>
+                                                <?= htmlspecialchars($col[$key] ?? '-') ?>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endforeach; ?>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                                <td colspan="<?= count($tableColumns) ?>"
+                                    style="text-align: center; padding: 40px; color: #64748b;">
                                     <div style="margin-bottom: 10px; font-size: 2rem; opacity: 0.3;"><i
                                             class="fas fa-search"></i></div>
                                     No records found matching your criteria.
@@ -497,7 +518,7 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         const pickerBtn = document.getElementById('colPickerBtn');
         const pickerDropdown = document.getElementById('colPickerDropdown');
         const toggles = document.querySelectorAll('.col-toggle');
@@ -528,7 +549,7 @@
                 toggleColumn(colIndex, false);
             }
 
-            checkbox.addEventListener('change', function() {
+            checkbox.addEventListener('change', function () {
                 toggleColumn(colIndex, this.checked);
                 preferences[colIndex] = this.checked;
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));

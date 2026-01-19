@@ -83,6 +83,30 @@ class CustomerController extends Controller
         $stmt->execute($params);
         $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // 6. Fetch Table Columns
+        $colStmt = $this->db->prepare("SELECT columns_json FROM table_settings WHERE table_name = 'all_customers'");
+        $colStmt->execute();
+        $colJson = $colStmt->fetchColumn();
+
+        $tableColumns = [];
+        if ($colJson) {
+            $decoded = json_decode($colJson, true);
+            // Filter enabled only
+            $tableColumns = array_filter($decoded, fn($c) => !empty($c['enabled']));
+        } else {
+            // Defaults
+            $tableColumns = [
+                ['key' => 'id', 'label' => 'ID', 'enabled' => true],
+                ['key' => 'full_name', 'label' => 'Name', 'enabled' => true],
+                ['key' => 'mobile_no', 'label' => 'Mobile', 'enabled' => true],
+                ['key' => 'area', 'label' => 'Area', 'enabled' => true],
+                ['key' => 'package_name', 'label' => 'Package', 'enabled' => true],
+                ['key' => 'payment_id', 'label' => 'Payment ID', 'enabled' => true],
+                ['key' => 'due_amount', 'label' => 'Due', 'enabled' => true],
+                ['key' => 'status', 'label' => 'Status', 'enabled' => true]
+            ];
+        }
+
         $this->view('customers/index', [
             'title' => 'All Customers',
             'path' => '/customer',
@@ -93,7 +117,95 @@ class CustomerController extends Controller
             'order' => $order,
             'totalRecords' => $totalRecords,
             'q' => $q,
-            'statuses' => $statuses
+            'statuses' => $statuses,
+            'tableColumns' => $tableColumns
+        ]);
+    }
+
+    /**
+     * List pending customers with pagination, sorting, and filtering.
+     * 
+     * @return void
+     */
+    public function pending()
+    {
+        // 1. Pagination Settings
+        $limit = 20;
+        $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+        if ($page < 1)
+            $page = 1;
+        $offset = ($page - 1) * $limit;
+
+        // 2. Sorting Settings
+        $allowedSortColumns = ['id', 'full_name', 'mobile_no', 'area', 'package_name', 'created_at', 'status'];
+        $sort = isset($_GET['sort']) && in_array($_GET['sort'], $allowedSortColumns) ? $_GET['sort'] : 'id';
+        $order = isset($_GET['order']) && strtoupper($_GET['order']) === 'ASC' ? 'ASC' : 'DESC';
+
+        // 3. Filtering & Search Logic
+        $where = ["c.status = 'pending'"]; // Always filter for pending status
+        $params = [];
+
+        $q = $_GET['q'] ?? '';
+        if ($q) {
+            $where[] = "(LOWER(c.full_name) LIKE ? OR c.mobile_no LIKE ? OR LOWER(c.area) LIKE ? OR CONCAT(LOWER(COALESCE(ip.prefix_code,'')), c.id) LIKE ?)";
+            $term = "%" . strtolower($q) . "%";
+            $params = array_merge($params, [$term, $term, $term, $term]);
+        }
+
+        $whereSql = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
+
+        // 4. Get Total Count
+        $joins = "LEFT JOIN packages p ON c.package_id = p.id LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id";
+        $countSql = "SELECT COUNT(*) FROM customers c $joins $whereSql";
+        $countStmt = $this->db->prepare($countSql);
+        $countStmt->execute($params);
+        $totalRecords = $countStmt->fetchColumn();
+        $totalPages = ceil($totalRecords / $limit);
+
+        // 5. Fetch Records
+        $sql = "SELECT c.*, p.name as package_name, ip.prefix_code 
+                FROM customers c 
+                $joins
+                $whereSql
+                ORDER BY c.$sort $order LIMIT $limit OFFSET $offset";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Fetch Table Columns for Pending
+        $colStmt = $this->db->prepare("SELECT columns_json FROM table_settings WHERE table_name = 'pending_customers'");
+        $colStmt->execute();
+        $colJson = $colStmt->fetchColumn();
+
+        $tableColumns = [];
+        if ($colJson) {
+            $decoded = json_decode($colJson, true);
+            $tableColumns = array_filter($decoded, fn($c) => !empty($c['enabled']));
+        } else {
+            // Defaults
+            $tableColumns = [
+                ['key' => 'id', 'label' => 'ID', 'enabled' => true],
+                ['key' => 'full_name', 'label' => 'Name', 'enabled' => true],
+                ['key' => 'mobile_no', 'label' => 'Mobile', 'enabled' => true],
+                ['key' => 'area', 'label' => 'Area', 'enabled' => true],
+                ['key' => 'package_name', 'label' => 'Package', 'enabled' => true],
+                ['key' => 'created_at', 'label' => 'Request Date', 'enabled' => true],
+                ['key' => 'status', 'label' => 'Status', 'enabled' => true],
+            ];
+        }
+
+        $this->view('customers/pending', [
+            'title' => 'Pending Customers',
+            'path' => '/customer/pending',
+            'customers' => $customers,
+            'currentPage' => $page,
+            'totalPages' => $totalPages,
+            'sort' => $sort,
+            'order' => $order,
+            'totalRecords' => $totalRecords,
+            'q' => $q,
+            'tableColumns' => $tableColumns
         ]);
     }
 
@@ -392,62 +504,6 @@ class CustomerController extends Controller
         } catch (\Exception $e) {
             return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
-    }
-
-    /**
-     * List pending customers with pagination and search.
-     * 
-     * @return void
-     */
-    public function pending()
-    {
-        $limit = 20;
-        $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
-        if ($page < 1)
-            $page = 1;
-        $offset = ($page - 1) * $limit;
-
-        $allowedSortColumns = ['id', 'full_name', 'mobile_no', 'area', 'package_name', 'created_at'];
-        $sort = isset($_GET['sort']) && in_array($_GET['sort'], $allowedSortColumns) ? $_GET['sort'] : 'id';
-        $order = isset($_GET['order']) && strtoupper($_GET['order']) === 'ASC' ? 'ASC' : 'DESC';
-
-        $where = ["c.status = 'pending'"];
-        $params = [];
-        $joins = "LEFT JOIN packages p ON c.package_id = p.id LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id";
-
-        $q = $_GET['q'] ?? '';
-        if ($q) {
-            $where[] = "(LOWER(c.full_name) LIKE ? OR c.mobile_no LIKE ? OR LOWER(c.area) LIKE ? OR CONCAT(LOWER(COALESCE(ip.prefix_code,'')), c.id) LIKE ?)";
-            $term = "%" . strtolower($q) . "%";
-            $params = array_merge($params, [$term, $term, $term, $term]);
-        }
-
-        $whereSql = "WHERE " . implode(" AND ", $where);
-        $countSql = "SELECT COUNT(*) FROM customers c $joins $whereSql";
-        $countStmt = $this->db->prepare($countSql);
-        $countStmt->execute($params);
-        $totalRecords = $countStmt->fetchColumn();
-        $totalPages = ceil($totalRecords / $limit);
-
-        $sql = "SELECT c.*, p.name as package_name, ip.prefix_code 
-                FROM customers c 
-                $joins
-                $whereSql 
-                ORDER BY c.$sort $order LIMIT $limit OFFSET $offset";
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-        $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        $this->view('customers/pending', [
-            'title' => 'Pending Customers',
-            'path' => '/customer/pending',
-            'customers' => $customers,
-            'currentPage' => $page,
-            'totalPages' => $totalPages,
-            'sort' => $sort,
-            'order' => $order,
-            'q' => $q
-        ]);
     }
 
     /**

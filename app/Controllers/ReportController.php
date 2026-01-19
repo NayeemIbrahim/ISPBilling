@@ -145,6 +145,27 @@ class ReportController extends Controller
         $areas = $this->db->query("SELECT DISTINCT area FROM customers WHERE area IS NOT NULL AND area != ''")->fetchAll(PDO::FETCH_COLUMN);
         $connectedByList = $this->db->query("SELECT DISTINCT connected_by FROM customers WHERE connected_by IS NOT NULL AND connected_by != ''")->fetchAll(PDO::FETCH_COLUMN);
 
+        // Fetch Table Columns
+        $colStmt = $this->db->prepare("SELECT columns_json FROM table_settings WHERE table_name = 'due_list'");
+        $colStmt->execute();
+        $colJson = $colStmt->fetchColumn();
+
+        $tableColumns = [];
+        if ($colJson) {
+            $decoded = json_decode($colJson, true);
+            $tableColumns = array_filter($decoded, fn($c) => !empty($c['enabled']));
+        } else {
+            // Defaults
+            $tableColumns = [
+                ['key' => 'id', 'label' => 'ID', 'enabled' => true],
+                ['key' => 'customer_info', 'label' => 'Customer', 'enabled' => true],
+                ['key' => 'mobile_no', 'label' => 'Mobile', 'enabled' => true],
+                ['key' => 'area', 'label' => 'Area', 'enabled' => true],
+                ['key' => 'monthly_rent', 'label' => 'Monthly Rent', 'enabled' => true],
+                ['key' => 'due_amount', 'label' => 'Due Amount', 'enabled' => true],
+            ];
+        }
+
         $this->view('reports/due_list', [
             'title' => 'Due List Report',
             'path' => '/reports/due-list',
@@ -167,7 +188,8 @@ class ReportController extends Controller
                 'thanas' => $thanas,
                 'areas' => $areas,
                 'connectedByList' => $connectedByList
-            ]
+            ],
+            'tableColumns' => $tableColumns
         ]);
     }
 
@@ -273,10 +295,32 @@ class ReportController extends Controller
         $stmt = $this->db->query($sql);
         $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // Fetch Table Columns
+        $colStmt = $this->db->prepare("SELECT columns_json FROM table_settings WHERE table_name = 'inactive_list'");
+        $colStmt->execute();
+        $colJson = $colStmt->fetchColumn();
+
+        $tableColumns = [];
+        if ($colJson) {
+            $decoded = json_decode($colJson, true);
+            $tableColumns = array_filter($decoded, fn($c) => !empty($c['enabled']));
+        } else {
+            // Defaults
+            $tableColumns = [
+                ['key' => 'id', 'label' => 'ID', 'enabled' => true],
+                ['key' => 'customer_info', 'label' => 'Customer', 'enabled' => true],
+                ['key' => 'mobile_no', 'label' => 'Mobile', 'enabled' => true],
+                ['key' => 'status', 'label' => 'Status', 'enabled' => true],
+                ['key' => 'expire_date', 'label' => 'Expiry Date', 'enabled' => true],
+                ['key' => 'manual_auto_disable', 'label' => 'Manual / Auto', 'enabled' => true],
+            ];
+        }
+
         $this->view('reports/inactive_list', [
             'title' => 'Inactive / Expired List',
             'path' => '/reports/inactive-list',
-            'customers' => $customers
+            'customers' => $customers,
+            'tableColumns' => $tableColumns
         ]);
     }
 
@@ -376,6 +420,29 @@ class ReportController extends Controller
         $connectedByList = $this->db->query("SELECT DISTINCT connected_by FROM customers WHERE connected_by IS NOT NULL AND connected_by != ''")->fetchAll(PDO::FETCH_COLUMN);
         $employees = $this->db->query("SELECT id, name FROM employees")->fetchAll(PDO::FETCH_ASSOC);
 
+        // Fetch Table Columns
+        $colStmt = $this->db->prepare("SELECT columns_json FROM table_settings WHERE table_name = 'collection_report'");
+        $colStmt->execute();
+        $colJson = $colStmt->fetchColumn();
+
+        $tableColumns = [];
+        if ($colJson) {
+            $decoded = json_decode($colJson, true);
+            $tableColumns = array_filter($decoded, fn($c) => !empty($c['enabled']));
+        } else {
+            // Defaults
+            $tableColumns = [
+                ['key' => 'collection_date', 'label' => 'Date', 'enabled' => true],
+                ['key' => 'payment_id', 'label' => 'Payment ID', 'enabled' => true],
+                ['key' => 'customer_id', 'label' => 'ID', 'enabled' => true],
+                ['key' => 'customer_name', 'label' => 'Customer', 'enabled' => true],
+                ['key' => 'collected_by', 'label' => 'Collected By', 'enabled' => true],
+                ['key' => 'amount', 'label' => 'Amount', 'enabled' => true],
+                ['key' => 'status', 'label' => 'Status', 'enabled' => true],
+                ['key' => 'next_expire_date', 'label' => 'Expiry Date', 'enabled' => true],
+            ];
+        }
+
         $this->view('reports/collection_report', [
             'title' => 'Collection Report',
             'path' => '/reports/collection-report',
@@ -404,6 +471,7 @@ class ReportController extends Controller
                 'connectedByList' => $connectedByList,
                 'employees' => $employees,
             ],
+            'tableColumns' => $tableColumns
         ]);
     }
 
@@ -447,10 +515,36 @@ class ReportController extends Controller
         $stmt = $this->db->query($sql);
         $summary = $stmt->fetch(PDO::FETCH_ASSOC);
 
+        // Fetch Table Columns
+        $colStmt = $this->db->prepare("SELECT columns_json FROM table_settings WHERE table_name = 'customer_summary'");
+        $colStmt->execute();
+        $colJson = $colStmt->fetchColumn();
+
+        $tableColumns = [];
+        if ($colJson) {
+            $decoded = json_decode($colJson, true);
+            $tableColumns = array_filter($decoded, fn($c) => !empty($c['enabled']));
+        } else {
+            // Defaults
+            $tableColumns = [
+                ['key' => 'date', 'label' => 'Date', 'enabled' => true],
+                ['key' => 'description', 'label' => 'Description', 'enabled' => true],
+                ['key' => 'bill_amount', 'label' => 'Bill Amount', 'enabled' => true],
+                ['key' => 'additional', 'label' => 'Additional', 'enabled' => true],
+                ['key' => 'discount', 'label' => 'Discount', 'enabled' => true],
+                ['key' => 'due', 'label' => 'Due', 'enabled' => true],
+                ['key' => 'advance', 'label' => 'Advance', 'enabled' => true],
+                ['key' => 'paid_amount', 'label' => 'Paid Amount', 'enabled' => true],
+                ['key' => 'collected_by', 'label' => 'Collected By', 'enabled' => true],
+                ['key' => 'note', 'label' => 'Note', 'enabled' => true],
+            ];
+        }
+
         $this->view('reports/customer_summary', [
             'title' => 'Customer Summary',
             'path' => '/reports/customer-summary',
-            'summary' => $summary
+            'summary' => $summary,
+            'tableColumns' => $tableColumns
         ]);
     }
 

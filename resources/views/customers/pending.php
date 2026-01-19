@@ -117,62 +117,19 @@
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th class="sort-header" onclick="location.href='<?= sortUrlPending('id', $sort, $order) ?>'">
-                            ID
-                            <div class="sort-arrows">
-                                <i class="fas fa-caret-up <?= arrowClassPending('id', 'ASC', $sort, $order) ?>"></i>
-                                <i class="fas fa-caret-down <?= arrowClassPending('id', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header"
-                            onclick="location.href='<?= sortUrlPending('full_name', $sort, $order) ?>'">
-                            Name
-                            <div class="sort-arrows">
-                                <i
-                                    class="fas fa-caret-up <?= arrowClassPending('full_name', 'ASC', $sort, $order) ?>"></i>
-                                <i
-                                    class="fas fa-caret-down <?= arrowClassPending('full_name', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header"
-                            onclick="location.href='<?= sortUrlPending('mobile_no', $sort, $order) ?>'">
-                            Mobile
-                            <div class="sort-arrows">
-                                <i
-                                    class="fas fa-caret-up <?= arrowClassPending('mobile_no', 'ASC', $sort, $order) ?>"></i>
-                                <i
-                                    class="fas fa-caret-down <?= arrowClassPending('mobile_no', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header" onclick="location.href='<?= sortUrlPending('area', $sort, $order) ?>'">
-                            Area
-                            <div class="sort-arrows">
-                                <i class="fas fa-caret-up <?= arrowClassPending('area', 'ASC', $sort, $order) ?>"></i>
-                                <i
-                                    class="fas fa-caret-down <?= arrowClassPending('area', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header"
-                            onclick="location.href='<?= sortUrlPending('package_name', $sort, $order) ?>'">
-                            Package
-                            <div class="sort-arrows">
-                                <i
-                                    class="fas fa-caret-up <?= arrowClassPending('package_name', 'ASC', $sort, $order) ?>"></i>
-                                <i
-                                    class="fas fa-caret-down <?= arrowClassPending('package_name', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th class="sort-header"
-                            onclick="location.href='<?= sortUrlPending('created_at', $sort, $order) ?>'">
-                            Date
-                            <div class="sort-arrows">
-                                <i
-                                    class="fas fa-caret-up <?= arrowClassPending('created_at', 'ASC', $sort, $order) ?>"></i>
-                                <i
-                                    class="fas fa-caret-down <?= arrowClassPending('created_at', 'DESC', $sort, $order) ?>"></i>
-                            </div>
-                        </th>
-                        <th>Status</th>
+                        <?php foreach ($tableColumns as $col): ?>
+                            <?php
+                            $key = $col['key'];
+                            $label = $col['label'];
+                            ?>
+                            <th class="sort-header" onclick="location.href='<?= sortUrlPending($key, $sort, $order) ?>'">
+                                <?= htmlspecialchars($label) ?>
+                                <div class="sort-arrows">
+                                    <i class="fas fa-caret-up <?= arrowClassPending($key, 'ASC', $sort, $order) ?>"></i>
+                                    <i class="fas fa-caret-down <?= arrowClassPending($key, 'DESC', $sort, $order) ?>"></i>
+                                </div>
+                            </th>
+                        <?php endforeach; ?>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -180,16 +137,23 @@
                     <?php if (!empty($customers)): ?>
                         <?php foreach ($customers as $customer): ?>
                             <tr>
-                                <td><?= htmlspecialchars($customer['prefix_code'] ?? '') ?><?= $customer['id'] ?></td>
-                                <td>
-                                    <strong><?= $customer['full_name'] ?></strong>
-                                </td>
-                                <td><?= $customer['mobile_no'] ?></td>
-                                <td><?= $customer['area'] ?></td>
-                                <td><?= $customer['package_name'] ?></td>
-                                <td><?= $customer['created_at'] ? date('d/m/Y', strtotime($customer['created_at'])) : '-' ?>
-                                </td>
-                                <td><span style="color:orange; font-weight:bold;">Pending</span></td>
+                                <?php foreach ($tableColumns as $col): ?>
+                                    <?php $key = $col['key']; ?>
+                                    <td>
+                                        <?php if ($key === 'id'): ?>
+                                            <?= htmlspecialchars($customer['prefix_code'] ?? '') ?>                <?= $customer['id'] ?>
+                                        <?php elseif ($key === 'full_name'): ?>
+                                            <strong><?= htmlspecialchars($customer['full_name']) ?></strong>
+                                        <?php elseif ($key === 'created_at'): ?>
+                                            <?= $customer['created_at'] ? date('d/m/Y', strtotime($customer['created_at'])) : '-' ?>
+                                        <?php elseif ($key === 'status'): ?>
+                                            <span style="color:orange; font-weight:bold;">Pending</span>
+                                        <?php else: ?>
+                                            <?= htmlspecialchars($customer[$key] ?? '-') ?>
+                                        <?php endif; ?>
+                                    </td>
+                                <?php endforeach; ?>
+
                                 <td>
                                     <div style="display:flex; gap:5px;">
                                         <a href="<?= url('customer/show/' . $customer['id']) ?>" class="btn-table"
@@ -210,7 +174,8 @@
                         <?php endforeach; ?>
                     <?php else: ?>
                         <tr>
-                            <td colspan="8" style="text-align:center;">No pending customers found.</td>
+                            <td colspan="<?= count($tableColumns) + 1 ?>" style="text-align:center;">No pending customers
+                                found.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>

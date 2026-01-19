@@ -42,31 +42,11 @@
                     </div>
                     <div style="text-align: right;">
                         <div class="action-group no-print" style="display: flex; gap: 10px; align-items: center;">
-                            <div class="column-selector-wrapper">
-                                <button type="button" class="btn-secondary" id="colPickerBtn"
-                                    style="padding: 8px 12px; font-size: 13px;">
-                                    <i class="fas fa-columns"></i> Columns
-                                </button>
-                                <div class="column-picker-dropdown" id="colPickerDropdown">
-                                    <label><input type="checkbox" class="col-toggle" data-col="0" checked> Date</label>
-                                    <label><input type="checkbox" class="col-toggle" data-col="1" checked>
-                                        Description</label>
-                                    <label><input type="checkbox" class="col-toggle" data-col="2" checked> Bill
-                                        Amount</label>
-                                    <label><input type="checkbox" class="col-toggle" data-col="3" checked>
-                                        Additional</label>
-                                    <label><input type="checkbox" class="col-toggle" data-col="4" checked>
-                                        Discount</label>
-                                    <label><input type="checkbox" class="col-toggle" data-col="5" checked> Due</label>
-                                    <label><input type="checkbox" class="col-toggle" data-col="6" checked>
-                                        Advance</label>
-                                    <label><input type="checkbox" class="col-toggle" data-col="7" checked> Paid
-                                        Amount</label>
-                                    <label><input type="checkbox" class="col-toggle" data-col="8" checked> Collected
-                                        By</label>
-                                    <label><input type="checkbox" class="col-toggle" data-col="9" checked> Note</label>
-                                </div>
-                            </div>
+                            <!-- Configuration Link -->
+                            <a href="<?= url('setup/column-preview?table=customer_summary') ?>" class="btn-secondary"
+                                style="padding: 8px 12px; font-size: 13px; text-decoration: none; color: #475569; border: 1px solid #cbd5e1; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px;">
+                                <i class="fas fa-columns"></i> Columns
+                            </a>
 
                             <!-- Export Dropdown -->
                             <div class="column-selector-wrapper">
@@ -103,17 +83,12 @@
                     <table id="historyTable" style="width: 100%; border-collapse: collapse; font-size: 13px;">
                         <thead>
                             <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                                <th style="padding: 12px; text-align: left; color: #475569;">Date</th>
-                                <th style="padding: 12px; text-align: left; color: #475569;">Description</th>
-                                <th style="padding: 12px; text-align: right; color: #475569;">Bill Amount</th>
-                                <th style="padding: 12px; text-align: right; color: #64748b;">Additional</th>
-                                <th style="padding: 12px; text-align: right; color: #64748b;">Discount</th>
-                                <th style="padding: 12px; text-align: right; color: #ef4444;">Due</th>
-                                <th style="padding: 12px; text-align: right; color: #059669;">Advance</th>
-                                <th style="padding: 12px; text-align: right; color: #059669; background: #f0fdf4;">Paid
-                                    Amount</th>
-                                <th style="padding: 12px; text-align: left; color: #475569;">Collected By</th>
-                                <th style="padding: 12px; text-align: left; color: #475569;">Note</th>
+                                <?php foreach ($tableColumns as $col): ?>
+                                    <th
+                                        style="padding: 12px; text-align: left; color: #475569; <?= in_array($col['key'], ['bill_amount', 'additional', 'discount', 'due', 'advance', 'paid_amount']) ? 'text-align: right;' : '' ?>">
+                                        <?= htmlspecialchars($col['label']) ?>
+                                    </th>
+                                <?php endforeach; ?>
                             </tr>
                         </thead>
                         <tbody id="historyTableBody"></tbody>
@@ -139,6 +114,9 @@
 </div>
 
 <script>
+    // Inject Column Config
+    window.reportColumns = <?= json_encode($tableColumns) ?>;
+
     let searchTimeout;
     const searchInput = document.getElementById('customerSearch');
     const resultsBox = document.getElementById('searchResults');
@@ -319,45 +297,91 @@
                             const yyyy = e.date.getFullYear();
                             const dateStr = `${dd}/${mm}/${yyyy}`;
 
-                            const row = `
-                                <tr style="border-bottom: 1px solid #f1f5f9; ${rowClass}">
-                                    <td style="padding: 12px; color: #334155;">${dateStr}</td>
-                                    <td style="padding: 12px; font-weight: 500;">${e.description}</td>
-                                    <td style="padding: 12px; text-align: right;">${e.type === 'bill' ? debit.toFixed(2) : '-'}</td>
-                                    <td style="padding: 12px; text-align: right; color: #64748b;">${e.type === 'bill' ? (e.additional || 0).toFixed(2) : '-'}</td>
-                                    <td style="padding: 12px; text-align: right; color: #64748b;">${e.type === 'bill' ? (e.discount || 0).toFixed(2) : '-'}</td>
-                                    <td style="padding: 12px; text-align: right; color: #ef4444;">
-                                        ${showDue > 0 ? showDue.toFixed(2) : '-'}
-                                    </td>
-                                    <td style="padding: 12px; text-align: right; color: #059669;">
-                                        ${showAdvance > 0 ? showAdvance.toFixed(2) : '-'}
-                                    </td>
-                                    <td style="padding: 12px; text-align: right; color: #059669; font-weight: 600;">
-                                        ${e.type === 'collection' ? credit.toFixed(2) : '-'}
-                                    </td>
-                                    <td style="padding: 12px; text-align: center; font-size: 12px; color: #64748b;">
-                                        ${e.collected_by || '-'}
-                                    </td>
-                                    <td style="padding: 12px; text-align: left; font-size: 12px; color: #64748b;">
-                                        ${e.note && e.note !== '-' ? e.note : ''}
-                                    </td>
-                                </tr>
-                            `;
-                            tbody.innerHTML += row;
+                            // Construct Row based on dynamic columns
+                            let rowHtml = `<tr style="border-bottom: 1px solid #f1f5f9; ${rowClass}">`;
+
+                            window.reportColumns.forEach(col => {
+                                let content = '-';
+                                let style = 'padding: 12px;';
+
+                                switch (col.key) {
+                                    case 'date':
+                                        content = dateStr;
+                                        style += 'color: #334155;';
+                                        break;
+                                    case 'description':
+                                        content = e.description;
+                                        style += 'font-weight: 500;';
+                                        break;
+                                    case 'bill_amount':
+                                        content = e.type === 'bill' ? debit.toFixed(2) : '-';
+                                        style += 'text-align: right;';
+                                        break;
+                                    case 'additional':
+                                        content = e.type === 'bill' ? (e.additional || 0).toFixed(2) : '-';
+                                        style += 'text-align: right; color: #64748b;';
+                                        break;
+                                    case 'discount':
+                                        content = e.type === 'bill' ? (e.discount || 0).toFixed(2) : '-';
+                                        style += 'text-align: right; color: #64748b;';
+                                        break;
+                                    case 'due':
+                                        content = showDue > 0 ? showDue.toFixed(2) : '-';
+                                        style += 'text-align: right; color: #ef4444;';
+                                        break;
+                                    case 'advance':
+                                        content = showAdvance > 0 ? showAdvance.toFixed(2) : '-';
+                                        style += 'text-align: right; color: #059669;';
+                                        break;
+                                    case 'paid_amount':
+                                        content = e.type === 'collection' ? credit.toFixed(2) : '-';
+                                        style += 'text-align: right; color: #059669; font-weight: 600;';
+                                        break;
+                                    case 'collected_by':
+                                        content = e.collected_by || '-';
+                                        style += 'text-align: center; font-size: 12px; color: #64748b;';
+                                        break;
+                                    case 'note':
+                                        content = (e.note && e.note !== '-') ? e.note : '';
+                                        style += 'text-align: left; font-size: 12px; color: #64748b;';
+                                        break;
+                                }
+
+                                rowHtml += `<td style="${style}">${content}</td>`;
+                            });
+
+                            rowHtml += `</tr>`;
+                            tbody.innerHTML += rowHtml;
                         });
 
-                        // Footer Row
-                        const tfoot = document.getElementById('historyTableFoot');
-                        tfoot.innerHTML = `
-                            <tr style="background: #f8fafc; font-weight: 700; border-top: 2px solid #e2e8f0; border-bottom: 2px solid #e2e8f0;">
-                                <td colspan="7" style="padding: 12px; text-align: right; color: #475569;">Total Paid:</td>
-                                <td style="padding: 12px; text-align: right; color: #059669;">${totalPaid.toFixed(2)}</td>
-                                <td colspan="2"></td>
-                            </tr>
-                        `;
+                        // Footer Row - Dynamic Colspan
+                        const visibleColsBeforePaid = window.reportColumns.findIndex(c => c.key === 'paid_amount');
+                        const colSpan = visibleColsBeforePaid > -1 ? visibleColsBeforePaid : 7; // simplified
 
-                        // Apply column visibility after rendering
-                        applyColumnVisibility();
+                        // Recalculate colspan properly
+                        const footerColSpan = window.reportColumns.length;
+                        // Actually we want to align "Total Paid" under the Paid Amount column.
+                        // This is tricky with dynamic columns.
+                        // A simple solution: Just a summary row at bottom or separate summary box.
+                        // OR: Render empty cells until Paid Amount column URLSearchParams.
+
+                        let footerHtml = `<tr style="background: #f8fafc; font-weight: 700; border-top: 2px solid #e2e8f0; border-bottom: 2px solid #e2e8f0;">`;
+                        window.reportColumns.forEach(col => {
+                            if (col.key === 'paid_amount') {
+                                footerHtml += `<td style="padding: 12px; text-align: right; color: #059669;">${totalPaid.toFixed(2)}</td>`;
+                            } else if (col.key === 'advance') {  // Use this slot for "Total" label?
+                                footerHtml += `<td style="padding: 12px; text-align: right; color: #475569;">Total Paid:</td>`;
+                            } else {
+                                footerHtml += `<td></td>`;
+                            }
+                        });
+                        footerHtml += `</tr>`;
+
+                        const tfoot = document.getElementById('historyTableFoot');
+                        tfoot.innerHTML = footerHtml;
+
+                        // Remove logic calling applyColumnVisibility as it's no longer needed (PHP handles it)
+                        // applyColumnVisibility(); -> REMOVED
                     }
 
                     document.getElementById('historySection').style.display = 'block';
@@ -371,76 +395,9 @@
     }
 
     // Column Picker Logic
-    document.addEventListener('DOMContentLoaded', function () {
-        const pickerBtn = document.getElementById('colPickerBtn');
-        const pickerDropdown = document.getElementById('colPickerDropdown');
-        const toggles = document.querySelectorAll('.col-toggle');
-        const table = document.querySelector('#printableArea table');
-        const STORAGE_KEY = 'customer_summary_cols';
-
-        // Toggle dropdown
-        pickerBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            pickerDropdown.classList.toggle('active');
-        });
-
-        document.addEventListener('click', () => {
-            pickerDropdown.classList.remove('active');
-        });
-
-        pickerDropdown.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-
-        // Load saved preferences
-        let preferences = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-
-        toggles.forEach(checkbox => {
-            const colIndex = checkbox.dataset.col;
-            if (preferences[colIndex] === false) {
-                checkbox.checked = false;
-            }
-
-            checkbox.addEventListener('change', function () {
-                toggleColumn(colIndex, this.checked);
-                preferences[colIndex] = this.checked;
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences));
-            });
-        });
-
-        window.applyColumnVisibility = function () {
-            toggles.forEach(checkbox => {
-                toggleColumn(checkbox.dataset.col, checkbox.checked);
-            });
-        };
-
-        function toggleColumn(index, show) {
-            const table = document.querySelector('#printableArea table');
-            if (!table) return;
-            const rows = table.rows;
-            for (let i = 0; i < rows.length; i++) {
-                const cell = rows[i].cells[index];
-                if (cell) {
-                    if (show) {
-                        cell.classList.remove('col-hidden');
-                    } else {
-                        cell.classList.add('col-hidden');
-                    }
-                }
-            }
-
-            // Handle colspan for footer
-            const tfoot = document.getElementById('historyTableFoot');
-            if (tfoot && tfoot.rows.length > 0) {
-                const footerRow = tfoot.rows[0];
-                let visibleBeforePaid = 0;
-                for (let i = 0; i < 7; i++) {
-                    if (preferences[i] !== false) visibleBeforePaid++;
-                }
-                footerRow.cells[0].colSpan = visibleBeforePaid;
-            }
-        }
-    });
+    function printHistory() {
+        window.print();
+    }
 </script>
 <script>
     // Export Dropdown Logic for Customer Summary

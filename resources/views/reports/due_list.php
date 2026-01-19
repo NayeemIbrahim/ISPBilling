@@ -320,7 +320,11 @@
                 <button onclick="syncBalances()" class="btn-print" id="syncBtn">
                     <i class="fas fa-sync"></i> Sync All Balances
                 </button>
-                <div class="column-selector-wrapper no-print">
+                <a href="<?= url('setup/column-preview?table=due_list') ?>" class="btn-print"
+                    style="text-decoration: none; display: inline-flex; align-items: center; gap: 5px;">
+                    <i class="fas fa-columns"></i> Columns
+                </a>
+                <div class="column-selector-wrapper no-print" style="display:none;">
                     <button type="button" class="btn-print" id="colPickerBtn">
                         <i class="fas fa-columns"></i> Columns
                     </button>
@@ -426,37 +430,49 @@
                 <table id="dueTable" class="custom-table">
                     <thead>
                         <tr>
-                            <th width="10%">ID</th>
-                            <th width="25%">Customer</th>
-                            <th width="15%">Mobile</th>
-                            <th width="15%">Area</th>
-                            <th width="12%" style="text-align: right;">Monthly Rent</th>
-                            <th width="12%" style="text-align: right;">Due Amount</th>
-                            <th width="11%" class="no-print">Action</th>
+                            <?php foreach ($tableColumns as $col): ?>
+                                <th
+                                    class="<?= in_array($col['key'], ['monthly_rent', 'due_amount']) ? 'text-right' : '' ?>">
+                                    <?= htmlspecialchars($col['label']) ?>
+                                </th>
+                            <?php endforeach; ?>
+                            <th class="no-print" width="10%">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!empty($customers)): ?>
                             <?php foreach ($customers as $c): ?>
                                 <tr>
-                                    <td><span
-                                            class="col-id"><?= htmlspecialchars($c['prefix_code'] ?? '') ?><?= $c['id'] ?></span>
-                                    </td>
-                                    <td>
-                                        <div class="user-info">
-                                            <span class="user-name"><?= htmlspecialchars($c['full_name']) ?></span>
-                                            <span
-                                                class="user-sub"><?= htmlspecialchars($c['pppoe_name'] ?? 'No PPPoE') ?></span>
-                                        </div>
-                                    </td>
-                                    <td><?= htmlspecialchars($c['mobile_no']) ?></td>
-                                    <td><?= htmlspecialchars($c['area'] ?? 'N/A') ?></td>
-                                    <td style="text-align: right; font-weight: 500; font-family: monospace;">
-                                        <?= number_format($c['monthly_rent'], 2) ?>
-                                    </td>
-                                    <td style="text-align: right; font-weight: 700; color: #ef4444; font-family: monospace;">
-                                        <?= number_format($c['due_amount'], 2) ?>
-                                    </td>
+                                    <?php foreach ($tableColumns as $col): ?>
+                                        <?php if ($col['key'] === 'id'): ?>
+                                            <td><span
+                                                    class="col-id"><?= htmlspecialchars($c['prefix_code'] ?? '') ?><?= $c['id'] ?></span>
+                                            </td>
+                                        <?php elseif ($col['key'] === 'customer_info'): ?>
+                                            <td>
+                                                <div class="user-info">
+                                                    <span class="user-name"><?= htmlspecialchars($c['full_name']) ?></span>
+                                                    <span
+                                                        class="user-sub"><?= htmlspecialchars($c['pppoe_name'] ?? 'No PPPoE') ?></span>
+                                                </div>
+                                            </td>
+                                        <?php elseif ($col['key'] === 'mobile_no'): ?>
+                                            <td><?= htmlspecialchars($c['mobile_no']) ?></td>
+                                        <?php elseif ($col['key'] === 'area'): ?>
+                                            <td><?= htmlspecialchars($c['area'] ?? 'N/A') ?></td>
+                                        <?php elseif ($col['key'] === 'monthly_rent'): ?>
+                                            <td style="text-align: right; font-weight: 500; font-family: monospace;">
+                                                <?= number_format($c['monthly_rent'], 2) ?>
+                                            </td>
+                                        <?php elseif ($col['key'] === 'due_amount'): ?>
+                                            <td style="text-align: right; font-weight: 700; color: #ef4444; font-family: monospace;">
+                                                <?= number_format($c['due_amount'], 2) ?>
+                                            </td>
+                                        <?php else: ?>
+                                            <td><?= htmlspecialchars($c[$col['key']] ?? '') ?></td>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+
                                     <td class="no-print">
                                         <a href="<?= url('customer/show/' . $c['id']) ?>" class="btn-action">
                                             <i class="fas fa-eye"></i> View
@@ -466,7 +482,8 @@
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="7" style="text-align: center; padding: 40px; color: #64748b;">
+                                <td colspan="<?= count($tableColumns) + 1 ?>"
+                                    style="text-align: center; padding: 40px; color: #64748b;">
                                     No due records found for this period.
                                 </td>
                             </tr>

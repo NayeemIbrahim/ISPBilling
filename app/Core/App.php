@@ -50,9 +50,18 @@ class App
 
         // 2. Check for Method
         if (isset($url[0])) {
+            // Check exact match
             if (method_exists($this->controller, $url[0])) {
                 $this->method = $url[0];
                 array_shift($url);
+            }
+            // Check camelCase match (column-preview -> columnPreview)
+            else {
+                $camelMethod = lcfirst(str_replace('-', '', ucwords($url[0], '-')));
+                if (method_exists($this->controller, $camelMethod)) {
+                    $this->method = $camelMethod;
+                    array_shift($url);
+                }
             }
         }
 
