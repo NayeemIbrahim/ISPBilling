@@ -27,8 +27,34 @@ class SetupController extends Controller
      */
     public function package()
     {
+        if (!$this->db) {
+            die("Database connection failed. Please check your config/database.php settings.");
+        }
+
         // 1. Auto-Migration (Fix for missing tables)
         try {
+            $this->db->exec("CREATE TABLE IF NOT EXISTS users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                display_name VARCHAR(255) NOT NULL,
+                username VARCHAR(100) NOT NULL UNIQUE,
+                password VARCHAR(255) NOT NULL,
+                email VARCHAR(255) NOT NULL UNIQUE,
+                role ENUM('Super Admin', 'Admin', 'Employee') DEFAULT 'Employee',
+                status ENUM('pending', 'active', 'inactive') DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )");
+
+            // Seed Super Admin if not exists
+            $stmt = $this->db->prepare("SELECT id FROM users WHERE username = 'superadmin'");
+            $stmt->execute();
+            if (!$stmt->fetch()) {
+                $hash = password_hash('superadmin', PASSWORD_DEFAULT);
+                $sql = "INSERT INTO users (display_name, username, password, email, role, status) 
+                        VALUES ('Super Admin', 'superadmin', ?, 'nayeemibrahim46@gmail.com', 'Super Admin', 'active')";
+                $this->db->prepare($sql)->execute([$hash]);
+            }
+
             $this->db->exec("CREATE TABLE IF NOT EXISTS merchants (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,

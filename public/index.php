@@ -1,5 +1,4 @@
 <?php
-
 // Autoloader
 spl_autoload_register(function ($class) {
     // Convert namespace to full file path

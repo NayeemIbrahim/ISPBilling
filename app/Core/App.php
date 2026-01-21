@@ -35,7 +35,6 @@ class App
 
         // 1. Check for Controller
         if (isset($url[0])) {
-            // Convert kebab-case (complain-list) to PascalCase (ComplainList)
             $name = str_replace('-', '', ucwords($url[0], '-'));
             $controllerName = ucfirst($name) . 'Controller';
 
@@ -46,34 +45,36 @@ class App
         }
 
         require_once __DIR__ . '/../Controllers/' . $this->controller . '.php';
-        $this->controller = new ('\\App\\Controllers\\' . $this->controller);
+        $controllerClass = '\\App\\Controllers\\' . $this->controller;
+        $controllerName = $this->controller;
 
         // 2. Check for Method
         if (isset($url[0])) {
-            // Check exact match
-            if (method_exists($this->controller, $url[0])) {
+            if (method_exists($controllerClass, $url[0])) {
                 $this->method = $url[0];
                 array_shift($url);
-            }
-            // Check camelCase match (column-preview -> columnPreview)
-            else {
+            } else {
                 $camelMethod = lcfirst(str_replace('-', '', ucwords($url[0], '-')));
-                if (method_exists($this->controller, $camelMethod)) {
+                if (method_exists($controllerClass, $camelMethod)) {
                     $this->method = $camelMethod;
                     array_shift($url);
                 }
             }
         }
 
-        // Safety: ensure method exists, default to index
-        if (!method_exists($this->controller, $this->method)) {
+        if (!method_exists($controllerClass, $this->method)) {
             $this->method = 'index';
         }
 
-        // 3. Params
+        // 3. Auth Middleware check
+        \App\Middleware\AuthMiddleware::handle($controllerName, $this->method);
+
+        $this->controller = new $controllerClass();
+
+        // 4. Params
         $this->params = $url ? array_values($url) : [];
 
-        // 4. Call method
+        // 5. Call method
         call_user_func_array([$this->controller, $this->method], $this->params);
     }
 
@@ -85,8 +86,29 @@ class App
     public function parseUrl()
     {
         if (isset($_GET['url'])) {
-            return explode('/', filter_var(rtrim($_GET['url'], '/'), FILTER_SANITIZE_URL));
+            $url = $_GET['url'];
+        } else {
+            // Robust fallback for subfolder environments
+            $requestUri = explode('?', $_SERVER['REQUEST_URI'])[0];
+            $scriptName = $_SERVER['SCRIPT_NAME'];
+
+            // Normalize path separators
+            $requestUri = str_replace('\\', '/', $requestUri);
+            $scriptName = str_replace('\\', '/', $scriptName);
+
+            // Identify the base project directory
+            $baseDir = str_replace('/public/index.php', '', $scriptName);
+            $baseDir = str_replace('/index.php', '', $baseDir);
+
+            $url = $requestUri;
+
+            // Strip the base project directory from the request URI
+            if ($baseDir !== '' && $baseDir !== '/' && strpos($url, $baseDir) === 0) {
+                $url = substr($url, strlen($baseDir));
+            }
         }
-        return null;
+
+        $url = filter_var(rtrim($url, '/'), FILTER_SANITIZE_URL);
+        return array_values(array_filter(explode('/', $url)));
     }
 }

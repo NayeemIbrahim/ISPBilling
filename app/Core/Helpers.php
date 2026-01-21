@@ -10,10 +10,8 @@ $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVE
     "http://";
 $domainName = $_SERVER['HTTP_HOST'];
 $scriptPath = str_replace('/index.php', '', $_SERVER['SCRIPT_NAME']);
+$scriptPath = str_replace('/public', '', $scriptPath); // Hide public folder from URLs
 
-/**
- * The base directory for the application's public access.
- */
 define('BASE_URL', $protocol . $domainName . $scriptPath . '/');
 
 /**

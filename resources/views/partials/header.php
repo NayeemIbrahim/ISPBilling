@@ -103,10 +103,153 @@ $path = $data['path'] ?? '';
                     <a href="#">Reseller Balance Summary</a>
                 </div>
             </li>
+
+            <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'Super Admin'): ?>
+                <li><a href="<?= url('user') ?>" class="<?= $path === '/users' ? 'active' : '' ?>">Users</a></li>
+            <?php endif; ?>
         </ul>
 
-        <div class="nav-profile">
-            <span>Admin User</span>
-            <a href="<?= url('logout') ?>" class="btn-sm">Logout</a>
+        <style>
+            .nav-profile.dropdown {
+                position: relative;
+            }
+
+            .profile-trigger {
+                text-decoration: none;
+                color: #1e293b;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                padding: 6px 12px;
+                border-radius: 50px;
+                transition: all 0.2s ease;
+                background: rgba(241, 245, 249, 0.5);
+            }
+
+            .profile-trigger:hover {
+                background: #f1f5f9;
+            }
+
+            /* Disable hover for profile dropdown specifically */
+            .nav-profile.dropdown:hover .dropdown-content {
+                display: none;
+            }
+
+            .nav-profile.dropdown.active .dropdown-content {
+                display: block;
+                animation: fadeIn 0.1s ease-out;
+            }
+
+            .profile-avatar {
+                width: 32px;
+                height: 32px;
+                background: var(--primary);
+                color: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 0.85rem;
+                font-weight: 700;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+
+            .profile-dropdown {
+                right: 0;
+                min-width: 240px;
+                padding: 8px !important;
+                border-radius: 16px !important;
+                border: 1px solid #e2e8f0 !important;
+                box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+                margin-top: 8px !important;
+            }
+
+            .dropdown-header {
+                padding: 12px 16px;
+                margin-bottom: 8px;
+                border-bottom: 1px solid #f1f5f9;
+            }
+
+            .header-name {
+                display: block;
+                font-weight: 700;
+                color: #1e293b;
+                font-size: 0.95rem;
+                line-height: 1.2;
+            }
+
+            .header-role {
+                display: block;
+                font-size: 0.75rem;
+                color: #64748b;
+                margin-top: 2px;
+                font-weight: 500;
+            }
+
+            .profile-dropdown a {
+                display: block !important;
+                padding: 10px 16px !important;
+                border-radius: 8px !important;
+                color: #475569 !important;
+                font-weight: 500 !important;
+                font-size: 0.9rem !important;
+                text-decoration: none !important;
+                transition: all 0.2s ease !important;
+            }
+
+            .profile-dropdown a:hover {
+                background: #f1f5f9 !important;
+                color: var(--primary) !important;
+                transform: none !important;
+            }
+
+            .dropdown-divider {
+                height: 1px;
+                background: #f1f5f9;
+                margin: 4px 0;
+            }
+        </style>
+
+        <div class="nav-profile dropdown" id="userDropdown">
+            <a href="javascript:void(0)" class="profile-trigger" onclick="toggleDropdown(event)">
+                <div class="profile-avatar">
+                    <?php
+                    $name = $_SESSION['display_name'] ?? 'Guest';
+                    echo strtoupper(substr($name, 0, 1));
+                    ?>
+                </div>
+                <span><?= htmlspecialchars($name) ?></span>
+            </a>
+            <div class="dropdown-content profile-dropdown">
+                <div class="dropdown-header">
+                    <span class="header-name"><?= htmlspecialchars($name) ?></span>
+                    <span class="header-role"><?= htmlspecialchars($_SESSION['role'] ?? 'User') ?></span>
+                </div>
+
+                <a href="<?= url('user/profile') ?>">My Profile</a>
+                <a href="<?= url('user/activity') ?>">Activity Logs</a>
+                <a href="<?= url('user/changePassword') ?>">Change Password</a>
+
+                <div class="dropdown-divider"></div>
+
+                <a href="<?= url('auth/logout') ?>" class="logout-item">Logout</a>
+            </div>
         </div>
+
+        <script>
+            function toggleDropdown(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                document.getElementById('userDropdown').classList.toggle('active');
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function (e) {
+                const dropdown = document.getElementById('userDropdown');
+                if (dropdown && !dropdown.contains(e.target)) {
+                    dropdown.classList.remove('active');
+                }
+            });
+        </script>
     </nav>

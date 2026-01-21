@@ -8,9 +8,9 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         flatpickr(".date-picker", {
-            dateFormat: "Y-m-d",
+            dateFormat: "d/m/Y",
             altInput: true,
-            altFormat: "d/m/Y",
+            altFormat: "Y/m/d",
             allowInput: true,
             placeholder: "DD/MM/YYYY"
         });

@@ -76,4 +76,32 @@ class Controller
         echo json_encode($data);
         exit;
     }
+
+    /**
+     * Log user activity in the database.
+     * 
+     * @param string $type The type of activity (e.g., 'Login', 'Update Profile').
+     * @param string $description Detailed description of the activity.
+     */
+    protected function logActivity($type, $description)
+    {
+        if (!isset($_SESSION['user_id']))
+            return;
+
+        try {
+            if (!$this->db) {
+                require_once __DIR__ . '/Database.php';
+                $this->db = (new \Database())->getConnection();
+            }
+
+            $userId = $_SESSION['user_id'];
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+
+            $sql = "INSERT INTO user_activity (user_id, activity_type, description, ip_address) VALUES (?, ?, ?, ?)";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute([$userId, $type, $description, $ip]);
+        } catch (\Exception $e) {
+            // Silently fail logging to avoid breaking main flow
+        }
+    }
 }
