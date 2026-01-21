@@ -95,17 +95,57 @@ class UserController extends Controller
 
             if ($displayName && $email) {
                 try {
+                    $profilePicturePath = null;
+                    if (isset($_FILES['profile_picture']) && $_FILES['profile_picture']['error'] === UPLOAD_ERR_OK) {
+                        $fileTmpPath = $_FILES['profile_picture']['tmp_name'];
+                        $fileName = $_FILES['profile_picture']['name'];
+                        $fileNameCmps = explode(".", $fileName);
+                        $fileExtension = strtolower(end($fileNameCmps));
+                        $allowedfileExtensions = array('jpg', 'gif', 'png', 'jpeg', 'webp');
+
+                        if (in_array($fileExtension, $allowedfileExtensions)) {
+                            $uploadFileDir = __DIR__ . '/../../public/uploads/profile_pictures/';
+                            if (!is_dir($uploadFileDir)) {
+                                mkdir($uploadFileDir, 0755, true);
+                            }
+                            $newFileName = md5(time() . $fileName) . '.' . $fileExtension;
+                            $dest_path = $uploadFileDir . $newFileName;
+
+                            if (move_uploaded_file($fileTmpPath, $dest_path)) {
+                                $profilePicturePath = 'uploads/profile_pictures/' . $newFileName;
+                                // Update session immediately for header
+                                $_SESSION['profile_picture'] = $profilePicturePath;
+                            }
+                        }
+                    }
+
+                    $sql = "";
+                    $params = [];
+
                     if ($password) {
                         if ($password !== $confirmPassword) {
                             throw new \Exception("Passwords do not match.");
                         }
                         $hash = password_hash($password, PASSWORD_DEFAULT);
-                        $sql = "UPDATE users SET display_name = ?, email = ?, phone = ?, address = ?, bio = ?, password = ? WHERE id = ?";
-                        $this->db->prepare($sql)->execute([$displayName, $email, $phone, $address, $bio, $hash, $userId]);
+
+                        if ($profilePicturePath) {
+                            $sql = "UPDATE users SET display_name = ?, email = ?, phone = ?, address = ?, bio = ?, password = ?, profile_picture = ? WHERE id = ?";
+                            $params = [$displayName, $email, $phone, $address, $bio, $hash, $profilePicturePath, $userId];
+                        } else {
+                            $sql = "UPDATE users SET display_name = ?, email = ?, phone = ?, address = ?, bio = ?, password = ? WHERE id = ?";
+                            $params = [$displayName, $email, $phone, $address, $bio, $hash, $userId];
+                        }
                     } else {
-                        $sql = "UPDATE users SET display_name = ?, email = ?, phone = ?, address = ?, bio = ? WHERE id = ?";
-                        $this->db->prepare($sql)->execute([$displayName, $email, $phone, $address, $bio, $userId]);
+                        if ($profilePicturePath) {
+                            $sql = "UPDATE users SET display_name = ?, email = ?, phone = ?, address = ?, bio = ?, profile_picture = ? WHERE id = ?";
+                            $params = [$displayName, $email, $phone, $address, $bio, $profilePicturePath, $userId];
+                        } else {
+                            $sql = "UPDATE users SET display_name = ?, email = ?, phone = ?, address = ?, bio = ? WHERE id = ?";
+                            $params = [$displayName, $email, $phone, $address, $bio, $userId];
+                        }
                     }
+
+                    $this->db->prepare($sql)->execute($params);
 
                     $_SESSION['display_name'] = $displayName;
                     $message = "Profile updated successfully!";

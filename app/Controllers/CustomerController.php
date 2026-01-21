@@ -14,6 +14,98 @@ use PDO;
 class CustomerController extends Controller
 {
     /**
+     * Show recent customers (default: current month) with date filtering and custom columns.
+     * 
+     * @return void
+     */
+    public function recent()
+    {
+        // 1. Date Filter Logic
+        $startDate = $_GET['start_date'] ?? date('Y-m-01');
+        $endDate = $_GET['end_date'] ?? date('Y-m-d');
+
+        // 2. Pagination
+        $limit = 30;
+        $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+        if ($page < 1)
+            $page = 1;
+        $offset = ($page - 1) * $limit;
+
+        // 3. Sorting
+        $allowedSortColumns = ['id', 'full_name', 'mobile_no', 'area', 'package_name', 'created_at', 'status'];
+        $sort = isset($_GET['sort']) && in_array($_GET['sort'], $allowedSortColumns) ? $_GET['sort'] : 'id';
+        $order = isset($_GET['order']) && strtoupper($_GET['order']) === 'ASC' ? 'ASC' : 'DESC';
+
+        // 4. Query Construction
+        $where = ["DATE(c.created_at) BETWEEN ? AND ?"];
+        $params = [$startDate, $endDate];
+
+        $q = $_GET['q'] ?? '';
+        if ($q) {
+            $where[] = "(LOWER(c.full_name) LIKE ? OR c.mobile_no LIKE ? OR LOWER(c.area) LIKE ? OR LOWER(c.payment_id) LIKE ?)";
+            $term = "%" . strtolower($q) . "%";
+            $params = array_merge($params, [$term, $term, $term, $term]);
+        }
+
+        $whereSql = "WHERE " . implode(" AND ", $where);
+
+        // 5. Get Total Count
+        $joins = "LEFT JOIN packages p ON c.package_id = p.id LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id";
+        $countSql = "SELECT COUNT(*) FROM customers c $joins $whereSql";
+        $countStmt = $this->db->prepare($countSql);
+        $countStmt->execute($params);
+        $totalRecords = $countStmt->fetchColumn();
+        $totalPages = ceil($totalRecords / $limit);
+
+        // 6. Fetch Records
+        $sql = "SELECT c.*, p.name as package_name, ip.prefix_code 
+                FROM customers c 
+                $joins
+                $whereSql
+                ORDER BY c.$sort $order LIMIT $limit OFFSET $offset";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // 7. Table Columns (Recent Customers)
+        $colStmt = $this->db->prepare("SELECT columns_json FROM table_settings WHERE table_name = 'recent_customers'");
+        $colStmt->execute();
+        $colJson = $colStmt->fetchColumn();
+
+        $tableColumns = [];
+        if ($colJson) {
+            $decoded = json_decode($colJson, true);
+            $tableColumns = array_filter($decoded, fn($c) => !empty($c['enabled']));
+        } else {
+            // Default Fallback
+            $tableColumns = [
+                ['key' => 'id', 'label' => 'ID', 'enabled' => true],
+                ['key' => 'full_name', 'label' => 'Name', 'enabled' => true],
+                ['key' => 'mobile_no', 'label' => 'Mobile', 'enabled' => true],
+                ['key' => 'area', 'label' => 'Area', 'enabled' => true],
+                ['key' => 'package_name', 'label' => 'Package', 'enabled' => true],
+                ['key' => 'created_at', 'label' => 'Date Added', 'enabled' => true],
+                ['key' => 'status', 'label' => 'Status', 'enabled' => true]
+            ];
+        }
+
+        $this->view('customers/recent', [
+            'title' => 'Recent Customers',
+            'path' => '/customer/recent',
+            'customers' => $customers,
+            'currentPage' => $page,
+            'totalPages' => $totalPages,
+            'sort' => $sort,
+            'order' => $order,
+            'totalRecords' => $totalRecords,
+            'q' => $q,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'tableColumns' => $tableColumns
+        ]);
+    }
+    /**
      * CustomerController constructor.
      */
     public function __construct()
@@ -29,7 +121,7 @@ class CustomerController extends Controller
     public function index()
     {
         // 1. Pagination Settings
-        $limit = 20;
+        $limit = 30;
         $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
         if ($page < 1)
             $page = 1;
@@ -130,7 +222,7 @@ class CustomerController extends Controller
     public function pending()
     {
         // 1. Pagination Settings
-        $limit = 20;
+        $limit = 30;
         $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
         if ($page < 1)
             $page = 1;
@@ -208,6 +300,8 @@ class CustomerController extends Controller
             'tableColumns' => $tableColumns
         ]);
     }
+
+
 
     /**
      * Show the create customer form.

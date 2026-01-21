@@ -166,7 +166,8 @@
     /* Content Styling */
     .item-content {
         flex: 1;
-        min-width: 0; /* Text truncation fix */
+        min-width: 0;
+        /* Text truncation fix */
     }
 
     .item-label {
@@ -227,18 +228,18 @@
         background-color: white;
         transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
         border-radius: 50%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
-    input:checked + .slider {
+    input:checked+.slider {
         background-color: var(--primary);
     }
 
-    input:focus + .slider {
+    input:focus+.slider {
         box-shadow: 0 0 1px var(--primary);
     }
 
-    input:checked + .slider:before {
+    input:checked+.slider:before {
         transform: translateX(20px);
     }
 
@@ -302,6 +303,10 @@
                 class="menu-link <?= $currentTable == 'pending_customers' ? 'active' : '' ?>">
                 <i class="fas fa-user-clock" style="width: 20px;"></i> Pending Customers
             </a>
+            <a href="<?= url('setup/column-preview?table=recent_customers') ?>"
+                class="menu-link <?= $currentTable == 'recent_customers' ? 'active' : '' ?>">
+                <i class="fas fa-history" style="width: 20px;"></i> Recent Customers
+            </a>
             <a href="<?= url('setup/column-preview?table=complain_list') ?>"
                 class="menu-link <?= $currentTable == 'complain_list' ? 'active' : '' ?>">
                 <i class="fas fa-exclamation-circle" style="width: 20px;"></i> Complain List
@@ -334,7 +339,8 @@
 
                 <form method="POST" action="<?= url('setup/column-preview?table=' . $currentTable) ?>">
                     <?php if (empty($allPossibleColumns)): ?>
-                        <div style="padding: 20px; color: #64748b; text-align: center; background: #f8fafc; border-radius: 8px;">
+                        <div
+                            style="padding: 20px; color: #64748b; text-align: center; background: #f8fafc; border-radius: 8px;">
                             No configurable columns for this table.
                         </div>
                     <?php else: ?>
@@ -366,10 +372,10 @@
                     <?php endif; ?>
 
                     <div class="actions">
-                        <a href="<?= url('setup/column-preview?table=' . $currentTable . '&action=reset') ?>" 
-                           class="btn-cancel"
-                           onclick="return confirm('Are you sure you want to reset to default settings? This will clear your custom order and visibility preferences.')">
-                           Reset to Default
+                        <a href="<?= url('setup/column-preview?table=' . $currentTable . '&action=reset') ?>"
+                            class="btn-cancel"
+                            onclick="return confirm('Are you sure you want to reset to default settings? This will clear your custom order and visibility preferences.')">
+                            Reset to Default
                         </a>
                         <button type="submit" class="btn-save">Save Changes</button>
                     </div>

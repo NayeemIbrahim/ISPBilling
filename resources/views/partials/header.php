@@ -35,10 +35,11 @@ $path = $data['path'] ?? '';
             <li class="dropdown">
                 <a href="#" class="<?= strpos($path, '/customer') !== false ? 'active' : '' ?>">Customer</a>
                 <div class="dropdown-content">
-                    <a href="<?= url('customer/create') ?>">Create Customer</a>
-                    <a href="<?= url('customer') ?>">All Customers</a>
-                    <a href="<?= url('customer/search') ?>">Search Customer</a>
-                    <a href="<?= url('customer/pending') ?>">Pending Customer</a>
+                    <a href="<?= url('customer/create') ?>" class="dropdown-item">Create Customer</a>
+                    <a href="<?= url('customer') ?>" class="dropdown-item">All Customers</a>
+                    <a href="<?= url('customer/pending') ?>" class="dropdown-item">Pending Customers</a>
+                    <a href="<?= url('customer/recent') ?>" class="dropdown-item">Recent Customer</a>
+                    <a href="<?= url('customer/search') ?>" class="dropdown-item">Search Customer</a>
                     <a href="<?= url('complain-list') ?>">Complain List</a>
                 </div>
             </li>
@@ -216,7 +217,11 @@ $path = $data['path'] ?? '';
                 <div class="profile-avatar">
                     <?php
                     $name = $_SESSION['display_name'] ?? 'Guest';
-                    echo strtoupper(substr($name, 0, 1));
+                    if (!empty($_SESSION['profile_picture']) && file_exists(__DIR__ . '/../../../public/' . $_SESSION['profile_picture'])) {
+                        echo '<img src="' . url($_SESSION['profile_picture']) . '" alt="Profile" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">';
+                    } else {
+                        echo strtoupper(substr($name, 0, 1));
+                    }
                     ?>
                 </div>
                 <span><?= htmlspecialchars($name) ?></span>

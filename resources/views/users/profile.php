@@ -32,6 +32,7 @@
         width: 120px;
         height: 120px;
         margin: 0 auto 24px;
+        cursor: pointer;
     }
 
     .profile-avatar-large {
@@ -46,6 +47,33 @@
         font-size: 3.5rem;
         font-weight: 700;
         box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+        overflow: hidden;
+    }
+
+    .profile-avatar-large img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .avatar-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    .avatar-wrapper:hover .avatar-overlay {
+        opacity: 1;
     }
 
     .profile-name {
@@ -170,7 +198,7 @@
 
     .btn-submit {
         background: var(--primary);
-        color: white;
+        color: Black;
         border: none;
         padding: 14px 28px;
         border-radius: 12px;
@@ -187,6 +215,7 @@
 
     .btn-submit:hover {
         background: #1d4ed8;
+        color: white;
         transform: translateY(-1px);
         box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
     }
@@ -221,9 +250,16 @@
     <div class="profile-layout">
         <!-- Sidebar -->
         <div class="profile-card">
-            <div class="avatar-wrapper">
+            <div class="avatar-wrapper" onclick="document.getElementById('profile_picture_input').click()">
                 <div class="profile-avatar-large">
-                    <?= strtoupper(substr($user['display_name'], 0, 1)) ?>
+                    <?php if (!empty($user['profile_picture']) && file_exists(__DIR__ . '/../../../public/' . $user['profile_picture'])): ?>
+                        <img src="<?= url($user['profile_picture']) ?>" alt="Profile">
+                    <?php else: ?>
+                        <?= strtoupper(substr($user['display_name'], 0, 1)) ?>
+                    <?php endif; ?>
+                </div>
+                <div class="avatar-overlay">
+                    <i class="fas fa-camera"></i>
                 </div>
             </div>
             <h1 class="profile-name"><?= htmlspecialchars($user['display_name']) ?></h1>
@@ -254,8 +290,11 @@
                 </div>
             <?php endif; ?>
 
-            <form action="<?= url('user/profile') ?>" method="POST" class="settings-card">
+            <form action="<?= url('user/profile') ?>" method="POST" enctype="multipart/form-data" class="settings-card">
                 <h2 class="settings-heading">Account Information</h2>
+
+                <input type="file" name="profile_picture" id="profile_picture_input" style="display: none;"
+                    accept="image/*">
 
                 <div class="form-grid">
                     <div class="form-group">
@@ -324,5 +363,23 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.getElementById('profile_picture_input').addEventListener('change', function (event) {
+        if (event.target.files && event.target.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const avatarDiv = document.querySelector('.profile-avatar-large');
+                // Remove existing content
+                avatarDiv.innerHTML = '';
+                // Create new image
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                avatarDiv.appendChild(img);
+            }
+            reader.readAsDataURL(event.target.files[0]);
+        }
+    });
+</script>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

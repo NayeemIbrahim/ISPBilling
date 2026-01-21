@@ -125,6 +125,7 @@ class AuthController extends Controller
             $_SESSION['display_name'] = $user['display_name'];
             $_SESSION['username'] = $user['username'];
             $_SESSION['role'] = $user['role'];
+            $_SESSION['profile_picture'] = $user['profile_picture'];
 
             $this->logActivity('Login', 'User successfully logged in.');
 

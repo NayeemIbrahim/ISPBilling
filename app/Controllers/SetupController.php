@@ -169,7 +169,7 @@ class SetupController extends Controller
         }
 
         // 1. Determine which table we are editing
-        $allowedTables = ['all_customers', 'pending_customers', 'complain_list', 'collection_report', 'customer_summary', 'due_list', 'inactive_list'];
+        $allowedTables = ['all_customers', 'pending_customers', 'recent_customers', 'complain_list', 'collection_report', 'customer_summary', 'due_list', 'inactive_list'];
         $currentTable = $_GET['table'] ?? 'all_customers';
         if (!in_array($currentTable, $allowedTables)) {
             $currentTable = 'all_customers';
@@ -260,6 +260,54 @@ class SetupController extends Controller
     private function getColumnDefinitions($table)
     {
         switch ($table) {
+            case 'recent_customers':
+                return [
+                    ['key' => 'id', 'label' => 'ID', 'enabled' => true],
+                    ['key' => 'full_name', 'label' => 'Name', 'enabled' => true],
+                    ['key' => 'mobile_no', 'label' => 'Mobile', 'enabled' => true],
+                    ['key' => 'area', 'label' => 'Area', 'enabled' => true],
+                    ['key' => 'package_name', 'label' => 'Package', 'enabled' => true],
+                    ['key' => 'payment_id', 'label' => 'Payment ID', 'enabled' => true],
+                    ['key' => 'due_amount', 'label' => 'Due', 'enabled' => true],
+                    ['key' => 'status', 'label' => 'Status', 'enabled' => true],
+                    ['key' => 'created_at', 'label' => 'Date Added', 'enabled' => true],
+
+                    // Personal
+                    ['key' => 'email', 'label' => 'Email', 'enabled' => false],
+                    ['key' => 'parents_name', 'label' => 'Parents Name', 'enabled' => false],
+                    ['key' => 'spouse_name', 'label' => 'Spouse Name', 'enabled' => false],
+                    ['key' => 'identification_no', 'label' => 'NID', 'enabled' => false],
+                    ['key' => 'alt_mobile_no', 'label' => 'Alt Mobile', 'enabled' => false],
+                    ['key' => 'contact_person', 'label' => 'Contact Person', 'enabled' => false],
+
+                    // Address
+                    ['key' => 'district', 'label' => 'District', 'enabled' => false],
+                    ['key' => 'thana', 'label' => 'Thana', 'enabled' => false],
+                    ['key' => 'building_name', 'label' => 'Building', 'enabled' => false],
+                    ['key' => 'floor', 'label' => 'Floor', 'enabled' => false],
+                    ['key' => 'house_no', 'label' => 'House No', 'enabled' => false],
+                    ['key' => 'tj_box', 'label' => 'TJ Box', 'enabled' => false],
+                    ['key' => 'fiber_code', 'label' => 'Fiber Code', 'enabled' => false],
+                    ['key' => 'onu_mac', 'label' => 'ONU MAC', 'enabled' => false],
+
+                    // Other
+                    ['key' => 'ip_address', 'label' => 'IP Address', 'enabled' => false],
+                    ['key' => 'mac_address', 'label' => 'MAC Address', 'enabled' => false],
+                    ['key' => 'pppoe_name', 'label' => 'PPPoE Name', 'enabled' => false],
+                    ['key' => 'connection_date', 'label' => 'Conn. Date', 'enabled' => false],
+                    ['key' => 'expire_date', 'label' => 'Expiry Date', 'enabled' => false],
+                    ['key' => 'monthly_rent', 'label' => 'Monthly Rent', 'enabled' => false],
+                    ['key' => 'total_amount', 'label' => 'Total Amount', 'enabled' => false],
+                    ['key' => 'billing_type', 'label' => 'Billing Type', 'enabled' => false],
+                    ['key' => 'discount', 'label' => 'Discount', 'enabled' => false],
+                    ['key' => 'advance_amount', 'label' => 'Advance', 'enabled' => false],
+                    ['key' => 'additional_charge', 'label' => 'Additional Charge', 'enabled' => false],
+                    ['key' => 'vat_percent', 'label' => 'VAT %', 'enabled' => false],
+                    ['key' => 'security_deposit', 'label' => 'Security Deposit', 'enabled' => false],
+                    ['key' => 'connected_by', 'label' => 'Connected By', 'enabled' => false],
+                    ['key' => 'note', 'label' => 'Note', 'enabled' => false],
+                ];
+
             case 'pending_customers':
                 return [
                     ['key' => 'id', 'label' => 'ID', 'enabled' => true],
@@ -273,6 +321,18 @@ class SetupController extends Controller
                     ['key' => 'email', 'label' => 'Email', 'enabled' => false],
                     ['key' => 'address', 'label' => 'Address', 'enabled' => false],
                     ['key' => 'note', 'label' => 'Note', 'enabled' => false],
+
+                    // Billing Extras
+                    ['key' => 'billing_type', 'label' => 'Billing Type', 'enabled' => false],
+                    ['key' => 'monthly_rent', 'label' => 'Monthly Rent', 'enabled' => false],
+                    ['key' => 'due_amount', 'label' => 'Due Amount', 'enabled' => false],
+                    ['key' => 'discount', 'label' => 'Discount', 'enabled' => false],
+                    ['key' => 'advance_amount', 'label' => 'Advance', 'enabled' => false],
+                    ['key' => 'additional_charge', 'label' => 'Additional Charge', 'enabled' => false],
+                    ['key' => 'vat_percent', 'label' => 'VAT %', 'enabled' => false],
+                    ['key' => 'security_deposit', 'label' => 'Security Deposit', 'enabled' => false],
+                    ['key' => 'total_amount', 'label' => 'Total Amount', 'enabled' => false],
+                    ['key' => 'expire_date', 'label' => 'Expiry Date', 'enabled' => false],
                 ];
 
             case 'complain_list':
@@ -385,6 +445,9 @@ class SetupController extends Controller
                     ['key' => 'billing_type', 'label' => 'Billing Type', 'enabled' => false],
                     ['key' => 'vat_percent', 'label' => 'VAT %', 'enabled' => false],
                     ['key' => 'discount', 'label' => 'Discount', 'enabled' => false],
+                    ['key' => 'advance_amount', 'label' => 'Advance', 'enabled' => false],
+                    ['key' => 'additional_charge', 'label' => 'Additional Charge', 'enabled' => false],
+                    ['key' => 'security_deposit', 'label' => 'Security Deposit', 'enabled' => false],
 
                     // Official
                     ['key' => 'client_type', 'label' => 'Client Type', 'enabled' => false],
