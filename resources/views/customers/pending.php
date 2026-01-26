@@ -141,7 +141,7 @@
                                     <?php $key = $col['key']; ?>
                                     <td>
                                         <?php if ($key === 'id'): ?>
-                                            <?= htmlspecialchars($customer['prefix_code'] ?? '') ?>                <?= $customer['id'] ?>
+                                            <?= htmlspecialchars($customer['prefix_code'] ?? '') ?>                 <?= $customer['id'] ?>
                                         <?php elseif ($key === 'full_name'): ?>
                                             <strong><?= htmlspecialchars($customer['full_name']) ?></strong>
                                         <?php elseif ($key === 'created_at'): ?>

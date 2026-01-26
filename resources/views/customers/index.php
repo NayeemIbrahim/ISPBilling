@@ -366,7 +366,7 @@
                                     <?php $key = $col['key']; ?>
                                     <td>
                                         <?php if ($key === 'id'): ?>
-                                            <?= htmlspecialchars($customer['prefix_code'] ?? '') ?>                <?= $customer['id'] ?>
+                                            <?= htmlspecialchars($customer['prefix_code'] ?? '') ?>                 <?= $customer['id'] ?>
                                         <?php elseif ($key === 'full_name'): ?>
                                             <strong><?= htmlspecialchars($customer['full_name']) ?></strong><br>
                                             <small style="color:#666"><?= htmlspecialchars($customer['company_name'] ?? '') ?></small>

@@ -14,6 +14,13 @@ $scriptPath = str_replace('/public', '', $scriptPath); // Hide public folder fro
 
 define('BASE_URL', $protocol . $domainName . $scriptPath . '/');
 
+// App Version
+if (file_exists(__DIR__ . '/../../VERSION')) {
+    define('APP_VERSION', trim(file_get_contents(__DIR__ . '/../../VERSION')));
+} else {
+    define('APP_VERSION', '1.0.0');
+}
+
 /**
  * Generate a dynamic asset URL.
  *

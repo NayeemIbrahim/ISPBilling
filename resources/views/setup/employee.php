@@ -329,23 +329,23 @@
     });
 
     // Cancel Role Edit
-    document.getElementById('cancelRoleEdit').addEventListener('click', function() {
+    document.getElementById('cancelRoleEdit').addEventListener('click', function () {
         // Reset Form
         document.getElementById('roleForm').reset();
         document.getElementById('roleId').value = '';
-        
+
         // Reset UI State
         document.getElementById('roleFormTitle').textContent = 'Create New Role';
         document.getElementById('saveRoleBtn').textContent = 'Save Role';
         this.style.display = 'none';
-        
+
         // Uncheck all boxes
         document.querySelectorAll('.permission-checkbox').forEach(cb => cb.checked = false);
     });
 
     // Employee Edit Functionality
     document.querySelectorAll('.edit-emp-btn').forEach(button => {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
             // Populate Form
             document.getElementById('empId').value = this.dataset.id;
             document.getElementById('empName').value = this.dataset.name;
@@ -353,36 +353,36 @@
             document.getElementById('empMobile').value = this.dataset.mobile;
             document.getElementById('empRole').value = this.dataset.role;
             document.getElementById('empMikrotik').value = this.dataset.mikrotik;
-            
+
             // Password fields not populated for security, but hint shown
             document.getElementById('empPassword').required = false;
             document.getElementById('empRetypePassword').required = false;
             document.getElementById('pwdHint').style.display = 'inline';
-            
+
             // Switch to New Employee Tab
             showTab('new');
-            
+
             // Change UI State
             document.getElementById('empFormTitle').textContent = 'Edit Employee';
             document.getElementById('saveEmpBtn').textContent = 'Update Employee';
             document.getElementById('cancelEmpEdit').style.display = 'block';
-            
+
             // Scroll to form
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     });
 
     // Cancel Employee Edit
-    document.getElementById('cancelEmpEdit').addEventListener('click', function() {
+    document.getElementById('cancelEmpEdit').addEventListener('click', function () {
         // Reset Form
         document.getElementById('empForm').reset();
         document.getElementById('empId').value = '';
-        
+
         // Reset Password Requirement
         document.getElementById('empPassword').required = true;
         document.getElementById('empRetypePassword').required = true;
         document.getElementById('pwdHint').style.display = 'none';
-        
+
         // Reset UI State
         document.getElementById('empFormTitle').textContent = 'Add New Employee';
         document.getElementById('saveEmpBtn').textContent = 'Create Employee';

@@ -68,7 +68,7 @@
         color: #334155;
         background: #fff;
         transition: all 0.2s;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
 
     .form-control-search:focus {
@@ -86,8 +86,15 @@
     }
 
     @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .banner-grid {
@@ -218,12 +225,28 @@
         align-items: center;
     }
 
-    .result-item-custom:last-child { border-bottom: none; }
-    .result-item-custom:hover { background: #f1f6ff; }
+    .result-item-custom:last-child {
+        border-bottom: none;
+    }
 
-    .result-main { display: flex; flex-direction: column; }
-    .result-name { font-weight: 600; color: #1e293b; }
-    .result-sub { font-size: 0.75rem; color: #64748b; }
+    .result-item-custom:hover {
+        background: #f1f6ff;
+    }
+
+    .result-main {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .result-name {
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .result-sub {
+        font-size: 0.75rem;
+        color: #64748b;
+    }
 
     .empty-state {
         text-align: center;
@@ -254,7 +277,8 @@
             <div class="search-wrapper">
                 <div class="search-input-group">
                     <i class="fas fa-search"></i>
-                    <input type="text" id="custSearch" class="form-control-search" placeholder="Quick find: Name, Mobile, PPPoE or Customer ID..." autocomplete="off">
+                    <input type="text" id="custSearch" class="form-control-search"
+                        placeholder="Quick find: Name, Mobile, PPPoE or Customer ID..." autocomplete="off">
                 </div>
                 <div id="searchResults" class="search-results-custom"></div>
             </div>
@@ -310,90 +334,90 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const searchInput = document.getElementById('custSearch');
-    const searchResults = document.getElementById('searchResults');
-    const infoBanner = document.getElementById('customerInfoBanner');
-    const tableWrapper = document.getElementById('tableWrapper');
-    const emptyState = document.getElementById('emptyState');
-    const historyBody = document.getElementById('historyBody');
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('custSearch');
+        const searchResults = document.getElementById('searchResults');
+        const infoBanner = document.getElementById('customerInfoBanner');
+        const tableWrapper = document.getElementById('tableWrapper');
+        const emptyState = document.getElementById('emptyState');
+        const historyBody = document.getElementById('historyBody');
 
-    let debounceTimer;
+        let debounceTimer;
 
-    searchInput.addEventListener('input', function() {
-        clearTimeout(debounceTimer);
-        const q = this.value.trim();
-        if (q.length < 2) {
-            searchResults.style.display = 'none';
-            return;
-        }
+        searchInput.addEventListener('input', function () {
+            clearTimeout(debounceTimer);
+            const q = this.value.trim();
+            if (q.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
 
-        debounceTimer = setTimeout(() => {
-            fetch(`<?= url('collection/search') ?>?q=${encodeURIComponent(q)}`)
-                .then(res => res.json())
-                .then(data => {
-                    searchResults.innerHTML = '';
-                    if (data.length > 0) {
-                        data.forEach(c => {
-                            const div = document.createElement('div');
-                            div.className = 'result-item-custom';
-                            div.innerHTML = `
+            debounceTimer = setTimeout(() => {
+                fetch(`<?= url('collection/search') ?>?q=${encodeURIComponent(q)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        searchResults.innerHTML = '';
+                        if (data.length > 0) {
+                            data.forEach(c => {
+                                const div = document.createElement('div');
+                                div.className = 'result-item-custom';
+                                div.innerHTML = `
                                 <div class="result-main">
                                     <span class="result-name">${c.full_name}</span>
                                     <span class="result-sub">${c.mobile_no}</span>
                                 </div>
                                 <span class="col-id">${c.prefix_code || ''}${c.id}</span>
                             `;
-                            div.onclick = () => selectCustomer(c.id);
-                            searchResults.appendChild(div);
-                        });
-                        searchResults.style.display = 'block';
-                    } else {
-                        searchResults.style.display = 'none';
+                                div.onclick = () => selectCustomer(c.id);
+                                searchResults.appendChild(div);
+                            });
+                            searchResults.style.display = 'block';
+                        } else {
+                            searchResults.style.display = 'none';
+                        }
+                    });
+            }, 300);
+        });
+
+        // Close search results when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+        });
+
+        function selectCustomer(id) {
+            searchResults.style.display = 'none';
+            searchInput.value = '';
+
+            fetch(`<?= url('collection/getCustomerInfo') ?>/${id}`)
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        const c = res.data;
+                        document.getElementById('bannerName').textContent = c.full_name;
+                        document.getElementById('bannerId').textContent = (c.prefix_code || '') + c.id;
+                        document.getElementById('bannerMobile').textContent = c.mobile_no;
+                        document.getElementById('bannerBalance').textContent = c.due_amount + ' TK';
+
+                        infoBanner.style.display = 'block';
+                        emptyState.style.display = 'none';
+                        fetchHistory(id);
                     }
                 });
-        }, 300);
-    });
-
-    // Close search results when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-            searchResults.style.display = 'none';
         }
-    });
 
-    function selectCustomer(id) {
-        searchResults.style.display = 'none';
-        searchInput.value = '';
-
-        fetch(`<?= url('collection/getCustomerInfo') ?>/${id}`)
-            .then(res => res.json())
-            .then(res => {
-                if(res.status === 'success'){
-                    const c = res.data;
-                    document.getElementById('bannerName').textContent = c.full_name;
-                    document.getElementById('bannerId').textContent = (c.prefix_code || '') + c.id;
-                    document.getElementById('bannerMobile').textContent = c.mobile_no;
-                    document.getElementById('bannerBalance').textContent = c.due_amount + ' TK';
-                    
-                    infoBanner.style.display = 'block';
-                    emptyState.style.display = 'none';
-                    fetchHistory(id);
-                }
-            });
-    }
-
-    function fetchHistory(customerId) {
-        fetch(`<?= url('collection/getHistory') ?>/${customerId}`)
-            .then(res => res.json())
-            .then(res => {
-                historyBody.innerHTML = '';
-                if(res.data.length === 0){
-                    historyBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:40px;">No historical payment records found for this customer.</td></tr>';
-                } else {
-                    res.data.forEach(col => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
+        function fetchHistory(customerId) {
+            fetch(`<?= url('collection/getHistory') ?>/${customerId}`)
+                .then(res => res.json())
+                .then(res => {
+                    historyBody.innerHTML = '';
+                    if (res.data.length === 0) {
+                        historyBody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding:40px;">No historical payment records found for this customer.</td></tr>';
+                    } else {
+                        res.data.forEach(col => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
                             <td style="font-weight: 500;">${col.collection_date}</td>
                             <td><span style="color:#64748b;">${col.invoice_no || 'N/A'}</span></td>
                             <td style="text-align: right;" class="amount-cell">${parseFloat(col.amount).toFixed(2)}</td>
@@ -408,38 +432,38 @@ document.addEventListener('DOMContentLoaded', function() {
                                 </div>
                             </td>
                         `;
-                        historyBody.appendChild(tr);
-                    });
-                }
-                tableWrapper.style.display = 'block';
-            });
-    }
+                            historyBody.appendChild(tr);
+                        });
+                    }
+                    tableWrapper.style.display = 'block';
+                });
+        }
 
-    window.deleteCol = function(id, customerId) {
-        if(!confirm('CRITICAL: Are you sure you want to delete this collection? \n\nThe customer\'s due amount will increase and their expiration date will revert to the previous entry. This cannot be undone.')) return;
+        window.deleteCol = function (id, customerId) {
+            if (!confirm('CRITICAL: Are you sure you want to delete this collection? \n\nThe customer\'s due amount will increase and their expiration date will revert to the previous entry. This cannot be undone.')) return;
 
-        const formData = new FormData();
-        formData.append('id', id);
+            const formData = new FormData();
+            formData.append('id', id);
 
-        fetch(`<?= url('collection/deleteRecord') ?>`, {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(res => {
-            if(res.status === 'success'){
-                alert('Success: ' + res.message);
-                selectCustomer(customerId); // Refresh view
-            } else {
-                alert('Error: ' + res.message);
-            }
-        })
-        .catch(err => {
-            console.error('Fetch error:', err);
-            alert('Failed to connect to server. Check your connection.');
-        });
-    };
-});
+            fetch(`<?= url('collection/deleteRecord') ?>`, {
+                method: 'POST',
+                body: formData
+            })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === 'success') {
+                        alert('Success: ' + res.message);
+                        selectCustomer(customerId); // Refresh view
+                    } else {
+                        alert('Error: ' + res.message);
+                    }
+                })
+                .catch(err => {
+                    console.error('Fetch error:', err);
+                    alert('Failed to connect to server. Check your connection.');
+                });
+        };
+    });
 </script>
 
 <?php include __DIR__ . '/../partials/footer.php'; ?>

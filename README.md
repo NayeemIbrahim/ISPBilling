@@ -72,7 +72,7 @@ A robust, full-featured ISP Management & Billing System built with Vanilla PHP, 
         ```
 
 4.  **Launch**:
-    *   Open your browser and visit: `http://localhost/HK%20ISP%20Billing/`
+    *   Open your browser and visit: `http://localhost/HK_ISP_Billing/`
     *   The application should load the Dashboard immediately.
 
 ---
