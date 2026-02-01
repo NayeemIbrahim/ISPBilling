@@ -77,6 +77,7 @@ $path = $data['path'] ?? '';
                     <a href="#">OLT Setup</a>
                     <a href="#">Address Setup</a>
                     <a href="<?= url('setup/column-preview') ?>">Column Preview Setup</a>
+                    <a href="<?= url('setup/customer-form') ?>">Customer Form Setup</a>
                     <a href="#">Print Preview Setup</a>
                     <a href="<?= url('complain') ?>">Complain Setup</a>
                     <a href="<?= url('employee') ?>">Employee Setup</a>

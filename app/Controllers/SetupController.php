@@ -255,6 +255,115 @@ class SetupController extends Controller
     }
 
     /**
+     * Handle Customer Form Setup.
+     * 
+     * @return void
+     */
+    public function customerForm()
+    {
+        $sections = $this->db->query("SELECT * FROM customer_form_sections ORDER BY order_index ASC")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($sections as &$section) {
+            $section['fields'] = $this->db->prepare("SELECT * FROM customer_form_fields WHERE section_id = ? ORDER BY order_index ASC");
+            $section['fields']->execute([$section['id']]);
+            $section['fields'] = $section['fields']->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        $this->view('setup/customer_form', [
+            'title' => 'Customer Form Setup',
+            'path' => '/setup/customer-form',
+            'sections' => $sections
+        ]);
+    }
+
+    /**
+     * Save Customer Form Configuration.
+     * 
+     * @return void
+     */
+    public function saveCustomerForm()
+    {
+        $data = json_decode(file_get_contents('php://input'), true);
+
+        if (!$data || !isset($data['sections'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Invalid data']);
+            return;
+        }
+
+        try {
+            $this->db->beginTransaction();
+
+            // Clear existing non-standard fields and all sections? 
+            // Or just update. Simpler to sync by ID.
+
+            // For now, let's just handle the updates of order and visibility.
+            // If we want to support adding/deleting, we need more logic.
+
+            foreach ($data['sections'] as $sIndex => $sData) {
+                // Update or Insert section
+                if (isset($sData['id']) && $sData['id'] > 0) {
+                    $stmt = $this->db->prepare("UPDATE customer_form_sections SET name = ?, order_index = ? WHERE id = ?");
+                    $stmt->execute([$sData['name'], $sIndex, $sData['id']]);
+                    $sectionId = $sData['id'];
+                } else {
+                    $stmt = $this->db->prepare("INSERT INTO customer_form_sections (name, order_index) VALUES (?, ?)");
+                    $stmt->execute([$sData['name'], $sIndex]);
+                    $sectionId = $this->db->lastInsertId();
+                }
+
+                if (isset($sData['fields'])) {
+                    foreach ($sData['fields'] as $fIndex => $fData) {
+                        if (isset($fData['id']) && $fData['id'] > 0) {
+                            $stmt = $this->db->prepare("UPDATE customer_form_fields SET section_id = ?, label = ?, placeholder = ?, type = ?, required = ?, is_visible = ?, order_index = ?, options = ? WHERE id = ?");
+                            $stmt->execute([
+                                $sectionId,
+                                $fData['label'],
+                                $fData['placeholder'] ?? null,
+                                $fData['type'],
+                                $fData['required'] ? 1 : 0,
+                                $fData['is_visible'] ? 1 : 0,
+                                $fIndex,
+                                isset($fData['options']) ? json_encode($fData['options']) : null,
+                                $fData['id']
+                            ]);
+                        } else {
+                            $stmt = $this->db->prepare("INSERT INTO customer_form_fields (section_id, field_key, label, placeholder, type, required, is_visible, order_index, options) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                            $stmt->execute([
+                                $sectionId,
+                                $fData['field_key'] ?? 'custom_' . time() . '_' . $fIndex,
+                                $fData['label'],
+                                $fData['placeholder'] ?? null,
+                                $fData['type'],
+                                $fData['required'] ? 1 : 0,
+                                $fData['is_visible'] ? 1 : 0,
+                                $fIndex,
+                                isset($fData['options']) ? json_encode($fData['options']) : null
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            // Handle deletions if IDs were provided in a 'deleted' array
+            if (isset($data['deleted_sections'])) {
+                foreach ($data['deleted_sections'] as $id) {
+                    $this->db->prepare("DELETE FROM customer_form_sections WHERE id = ?")->execute([$id]);
+                }
+            }
+            if (isset($data['deleted_fields'])) {
+                foreach ($data['deleted_fields'] as $id) {
+                    $this->db->prepare("DELETE FROM customer_form_fields WHERE id = ? AND is_standard = 0")->execute([$id]);
+                }
+            }
+
+            $this->db->commit();
+            echo json_encode(['status' => 'success']);
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+    }
+
+    /**
      * Define column schemas for different tables.
      */
     private function getColumnDefinitions($table)

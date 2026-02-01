@@ -317,13 +317,22 @@ class CustomerController extends Controller
         $nextIdStmt = $this->db->query("SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers'");
         $nextId = $nextIdStmt->fetchColumn() ?: 1;
 
+        // Fetch Dynamic Form Configuration
+        $sections = $this->db->query("SELECT * FROM customer_form_sections ORDER BY order_index ASC")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($sections as &$section) {
+            $section['fields'] = $this->db->prepare("SELECT * FROM customer_form_fields WHERE section_id = ? AND is_visible = 1 ORDER BY order_index ASC");
+            $section['fields']->execute([$section['id']]);
+            $section['fields'] = $section['fields']->fetchAll(PDO::FETCH_ASSOC);
+        }
+
         $this->view('customers/create', [
             'title' => 'Create Customer',
             'path' => '/customer/create',
             'employees' => $employees,
             'packages' => $packages,
             'defaultPrefix' => $defaultPrefix,
-            'nextId' => $nextId
+            'nextId' => $nextId,
+            'formSections' => $sections
         ]);
     }
 
@@ -338,82 +347,59 @@ class CustomerController extends Controller
             $json = file_get_contents('php://input');
             $data = json_decode($json, true) ?: $_POST;
 
-            $sql = "INSERT INTO customers (
-                full_name, email, identification_no, mobile_no, alt_mobile_no, professional_detail,
-                district, thana, area, building_name, floor, tj_box, house_no,
-                fiber_code, onu_mac, group_name, lazar_info, latitude, longitude, server_info, connection_date, expire_date,
-                mikrotik_id, pppoe_name, pppoe_password, pppoe_profile, ip_address, mac_address, bandwidth, comment,
-                package_id, monthly_rent, payment_id, due_amount, additional_charge, discount, advance_amount, vat_percent, total_amount,
-                billing_type, connectivity_type, connection_type, client_type, distribution_point, description, note, connected_by, reference_name, security_deposit, status, prefix_id,
-                auto_disable, auto_disable_month, extra_days, extra_days_type
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-
-            $prefixStmt = $this->db->query("SELECT id FROM id_prefixes WHERE is_default = TRUE LIMIT 1");
-            $prefixId = $prefixStmt->fetchColumn();
-
-            $values = [
-                $data['full_name'] ?? null,
-                $data['email'] ?? null,
-                $data['identification_no'] ?? null,
-                $data['mobile_no'] ?? null,
-                $data['alt_mobile_no'] ?? null,
-                $data['professional_detail'] ?? null,
-                $data['district'] ?? null,
-                $data['thana'] ?? null,
-                $data['area'] ?? null,
-                $data['building_name'] ?? null,
-                $data['floor'] ?? null,
-                $data['tj_box'] ?? null,
-                $data['house_no'] ?? null,
-                $data['fiber_code'] ?? null,
-                $data['onu_mac'] ?? null,
-                $data['group_name'] ?? null,
-                $data['lazar_info'] ?? null,
-                $data['latitude'] ?? null,
-                $data['longitude'] ?? null,
-                $data['server_info'] ?? null,
-                $data['connection_date'] ?? null,
-                $data['expire_date'] ?? null,
-                $data['mikrotik_id'] ?? 1,
-                $data['pppoe_name'] ?? null,
-                $data['pppoe_password'] ?? null,
-                $data['pppoe_profile'] ?? null,
-                $data['ip_address'] ?? null,
-                $data['mac_address'] ?? null,
-                $data['bandwidth'] ?? null,
-                $data['comment'] ?? null,
-                $data['package_id'] ?? null,
-                (float) ($data['monthly_rent'] ?? 0),
-                $data['payment_id'] ?? null,
-                (float) ($data['due_amount'] ?? 0),
-                (float) ($data['additional_charge'] ?? 0),
-                (float) ($data['discount'] ?? 0),
-                (float) ($data['advance_amount'] ?? 0),
-                (float) ($data['vat_percent'] ?? 0),
-                (float) ($data['total_amount'] ?? 0),
-                $data['billing_type'] ?? null,
-                $data['connectivity_type'] ?? null,
-                $data['connection_type'] ?? null,
-                $data['client_type'] ?? null,
-                $data['distribution_point'] ?? null,
-                $data['description'] ?? null,
-                $data['note'] ?? null,
-                $data['connected_by'] ?? null,
-                $data['reference_name'] ?? null,
-                (float) ($data['security_deposit'] ?? 0),
-                $data['status'] ?? 'pending',
-                $prefixId ?: null,
-                $data['auto_disable'] ?? 0,
-                $data['auto_disable_month'] ?? 0,
-                $data['extra_days'] ?? 0,
-                $data['extra_days_type'] ?? 'One month'
-            ];
-
             try {
+                $this->db->beginTransaction();
+
+                // 1. Get Standard Field Keys
+                $standardFieldsStmt = $this->db->query("SELECT field_key FROM customer_form_fields WHERE is_standard = 1");
+                $standardKeys = $standardFieldsStmt->fetchAll(PDO::FETCH_COLUMN);
+
+                // 2. Prepare Standard Fields SQL
+                $cols = [];
+                $placeholders = [];
+                $values = [];
+
+                foreach ($standardKeys as $key) {
+                    // Map special keys if needed
+                    $dbKey = ($key === 'connection_type_tech') ? 'connection_type' : $key;
+
+                    if (isset($data[$key])) {
+                        $cols[] = $dbKey;
+                        $placeholders[] = "?";
+                        $values[] = $data[$key];
+                    }
+                }
+
+                // Add prefix_id if not in dynamic fields
+                $prefixStmt = $this->db->query("SELECT id FROM id_prefixes WHERE is_default = TRUE LIMIT 1");
+                $prefixId = $prefixStmt->fetchColumn();
+                if ($prefixId) {
+                    $cols[] = 'prefix_id';
+                    $placeholders[] = "?";
+                    $values[] = $prefixId;
+                }
+
+                $sql = "INSERT INTO customers (" . implode(', ', $cols) . ") VALUES (" . implode(', ', $placeholders) . ")";
                 $stmt = $this->db->prepare($sql);
                 $stmt->execute($values);
-                return $this->json(['status' => 'success', 'message' => 'Created successfully']);
+                $customerId = $this->db->lastInsertId();
+
+                // 3. Handle Custom (Meta) Fields
+                $customFieldsStmt = $this->db->query("SELECT field_key FROM customer_form_fields WHERE is_standard = 0");
+                $customKeys = $customFieldsStmt->fetchAll(PDO::FETCH_COLUMN);
+
+                foreach ($customKeys as $key) {
+                    if (isset($data[$key])) {
+                        $metaStmt = $this->db->prepare("INSERT INTO customer_meta (customer_id, field_key, field_value) VALUES (?, ?, ?)");
+                        $metaStmt->execute([$customerId, $key, $data[$key]]);
+                    }
+                }
+
+                $this->db->commit();
+                return $this->json(['status' => 'success', 'message' => 'Created successfully', 'id' => $customerId]);
             } catch (\Exception $e) {
+                if ($this->db->inTransaction())
+                    $this->db->rollBack();
                 return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);
             }
         }
