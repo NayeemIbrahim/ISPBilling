@@ -35,11 +35,15 @@ CREATE TABLE IF NOT EXISTS `customer_meta` (
     INDEX (`field_key`)
 );
 
--- 2. Clean up existing (if any accidental runs during development)
+-- 2. Clean up existing (in case of partial previous run)
 SET FOREIGN_KEY_CHECKS = 0;
-TRUNCATE TABLE customer_form_fields;
-TRUNCATE TABLE customer_form_sections;
+DELETE FROM `customer_form_fields`;
+DELETE FROM `customer_form_sections`;
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- Reset Auto-Increment for clean IDs
+ALTER TABLE `customer_form_sections` AUTO_INCREMENT = 1;
+ALTER TABLE `customer_form_fields` AUTO_INCREMENT = 1;
 
 -- 3. Seed Sections
 INSERT INTO customer_form_sections (id, name, order_index) VALUES 
