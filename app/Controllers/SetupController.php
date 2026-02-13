@@ -329,7 +329,7 @@ class SetupController extends Controller
                             $stmt = $this->db->prepare("INSERT INTO customer_form_fields (section_id, field_key, label, placeholder, type, required, is_visible, order_index, options) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
                             $stmt->execute([
                                 $sectionId,
-                                $fData['field_key'] ?? 'custom_' . time() . '_' . $fIndex,
+                                (!empty($fData['field_key'])) ? $fData['field_key'] : 'custom_' . bin2hex(random_bytes(4)) . '_' . $fIndex,
                                 $fData['label'],
                                 $fData['placeholder'] ?? null,
                                 $fData['type'],

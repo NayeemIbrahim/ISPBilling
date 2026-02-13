@@ -529,7 +529,7 @@
                     <div class="drag-handle"><i class="fas fa-grip-vertical"></i></div>
                     <div class="field-info">
                         <span class="field-label">${label}${required ? ' *' : ''}</span>
-                        <span class="field-meta">${type.toUpperCase()} (new_field)</span>
+                        <span class="field-meta">${type.toUpperCase()} (new_field_unsaved)</span>
                     </div>
                     <div class="field-actions">
                         <label class="toggle-switch">
