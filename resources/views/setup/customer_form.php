@@ -319,37 +319,38 @@
                     <?php foreach ($section['fields'] as $field): ?>
                         <div class="field-item" data-id="<?= $field['id'] ?>" data-key="<?= $field['field_key'] ?>"
                             data-standard="<?= $field['is_standard'] ?>"
-                            data-placeholder="<?= htmlspecialchars($field['placeholder'] ?? '') ?>">
-                            <div class="drag-handle"><i class="fas fa-grip-vertical"></i></div>
-                            <div class="field-info">
-                                <span class="field-label">
-                                    <?= htmlspecialchars($field['label']) ?>
-                                    <?= $field['required'] ? ' *' : '' ?>
-                                </span>
-                                <span class="field-meta">
-                                    <?= strtoupper($field['type']) ?> (
-                                    <?= $field['field_key'] ?>)
-                                </span>
-                            </div>
-                            <div class="field-actions">
-                                <label class="toggle-switch" title="Toggle Visibility">
-                                    <input type="checkbox" class="visibility-toggle" <?= $field['is_visible'] ? 'checked' : '' ?>
-                                        onchange="markDirty()">
-                                    <span class="slider"></span>
-                                </label>
-                                <button class="btn btn-outline" style="padding: 6px 10px;" onclick="editField(this)"><i
-                                        class="fas fa-edit"></i></button>
-                                <?php if (!$field['is_standard']): ?>
-                                    <button class="btn btn-outline" style="padding: 6px 10px; color: var(--danger);"
-                                        onclick="deleteField(this)"><i class="fas fa-trash"></i></button>
-                                <?php endif; ?>
-                            </div>
+                            data-placeholder="<?= htmlspecialchars($field['placeholder'] ?? '') ?>"
+                            data-options="<?= htmlspecialchars($field['options'] ?? '') ?>">
+                        <div class="drag-handle"><i class="fas fa-grip-vertical"></i></div>
+                        <div class="field-info">
+                            <span class="field-label">
+                                <?= htmlspecialchars($field['label']) ?>
+                                <?= $field['required'] ? ' *' : '' ?>
+                            </span>
+                            <span class="field-meta">
+                                <?= strtoupper($field['type']) ?> (
+                                <?= $field['field_key'] ?>)
+                            </span>
                         </div>
-                    <?php endforeach; ?>
-                </div>
+                        <div class="field-actions">
+                            <label class="toggle-switch" title="Toggle Visibility">
+                                <input type="checkbox" class="visibility-toggle" <?= $field['is_visible'] ? 'checked' : '' ?>
+                                    onchange="markDirty()">
+                                <span class="slider"></span>
+                            </label>
+                            <button class="btn btn-outline" style="padding: 6px 10px;" onclick="editField(this)"><i
+                                    class="fas fa-edit"></i></button>
+                            <?php if (!$field['is_standard']): ?>
+                                <button class="btn btn-outline" style="padding: 6px 10px; color: var(--danger);"
+                                    onclick="deleteField(this)"><i class="fas fa-trash"></i></button>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
             </div>
-        <?php endforeach; ?>
-    </div>
+        </div>
+    <?php endforeach; ?>
+</div>
 </div>
 
 <!-- Add/Edit Field Modal -->
@@ -379,7 +380,7 @@
             </div>
             <div class="form-group">
                 <label>Placeholder Text</label>
-                <input type="text" id="fieldPlaceholder" placeholder="e.g. 1.1.1.1 or 2000">
+                <input type="text" id="fieldPlaceholder" placeholder="e.g. Placeholder">
             </div>
             <div class="form-group" id="optionsGroup" style="display: none;">
                 <label>Options (Comma separated)</label>
@@ -495,7 +496,22 @@
         document.getElementById('fieldRequired').checked = required;
 
         // Options handling (if it was dropdown)
-        // For simplicity, we could fetch full details via AJAX or store in data-attrs
+        let optionsStr = '';
+        if (item.dataset.options) {
+            try {
+                const parsed = JSON.parse(item.dataset.options);
+                if (Array.isArray(parsed)) {
+                    optionsStr = parsed.join(', ');
+                } else if (typeof parsed === 'object') {
+                    optionsStr = Object.values(parsed).join(', ');
+                } else {
+                    optionsStr = item.dataset.options;
+                }
+            } catch (e) {
+                optionsStr = item.dataset.options;
+            }
+        }
+        document.getElementById('fieldOptions').value = optionsStr;
 
         document.getElementById('optionsGroup').style.display = (type === 'select' || type === 'dropdown') ? 'block' : 'none';
         document.getElementById('modalTitle').innerText = 'Edit Field';
@@ -520,12 +536,16 @@
             item.querySelector('.field-label').innerHTML = label + (required ? ' *' : '');
             item.querySelector('.field-meta').innerText = `${type.toUpperCase()} (${item.dataset.key})`;
             item.dataset.placeholder = placeholder;
+            if (type === 'dropdown' || type === 'select') {
+                item.dataset.options = JSON.stringify(options.split(',').map(s => s.trim()).filter(s => s !== ''));
+            }
         } else {
             // New field
             const list = document.getElementById(`section-${sectionId}`);
             const newId = 'new_f_' + Date.now();
+            const fieldOptionsJson = (type === 'dropdown' || type === 'select') ? JSON.stringify(options.split(',').map(s => s.trim()).filter(s => s !== '')) : '';
             const html = `
-                <div class="field-item" data-id="${newId}" data-key="" data-standard="0" data-placeholder="${placeholder}">
+                <div class="field-item" data-id="${newId}" data-key="" data-standard="0" data-placeholder="${placeholder}" data-options='${fieldOptionsJson}'>
                     <div class="drag-handle"><i class="fas fa-grip-vertical"></i></div>
                     <div class="field-info">
                         <span class="field-label">${label}${required ? ' *' : ''}</span>
@@ -574,7 +594,8 @@
                     type: (type === 'dropdown') ? 'select' : type,
                     required: required,
                     is_visible: item.querySelector('.visibility-toggle').checked,
-                    order_index: fIndex
+                    order_index: fIndex,
+                    options: item.dataset.options ? JSON.parse(item.dataset.options) : null
                 });
             });
 

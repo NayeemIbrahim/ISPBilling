@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-02-20
+### Changed
+- **Customer Form Builder**: Improved handling of dropdown options, ensuring they are correctly parsed and persisted in the setup UI.
+- **User Sync**: Enhanced `AuthController` and `EmployeeController` to better synchronize employee data with user accounts and handle potential errors gracefully.
+
 ## [1.1.1] - 2026-02-13
 ### Changed
 - **Field Key Generation**: Improved the uniqueness of custom field keys in the form builder using `random_bytes`.

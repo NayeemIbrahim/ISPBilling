@@ -176,6 +176,38 @@ class EmployeeController extends Controller
                             // Error handled by silent fail for now
                         }
                     }
+
+                    // SYNC WITH USERS TABLE
+                    try {
+                        // Check if user exists by email
+                        $uStmt = $this->db->prepare("SELECT id FROM users WHERE email = ?");
+                        $uStmt->execute([$email]);
+                        $existingUser = $uStmt->fetch(PDO::FETCH_ASSOC);
+
+                        if ($existingUser) {
+                            // Update existing user
+                            $uSql = "UPDATE users SET display_name=:name, role='Employee', status='active'";
+                            $uParams = [':name' => $name, ':id' => $existingUser['id']];
+
+                            if (!empty($password) && ($password === $retype_password)) {
+                                $uSql .= ", password=:password";
+                                $uParams[':password'] = password_hash($password, PASSWORD_DEFAULT);
+                            }
+
+                            $uSql .= " WHERE id=:id";
+                            $this->db->prepare($uSql)->execute($uParams);
+                        } else {
+                            // Create new user
+                            if ($password && ($password === $retype_password)) {
+                                $username = explode('@', $email)[0] . '_' . rand(100, 999); // Generate unique username
+                                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                                $this->db->prepare("INSERT INTO users (display_name, username, email, password, role, status) VALUES (?, ?, ?, ?, 'Employee', 'active')")
+                                    ->execute([$name, $username, $email, $hashed_password]);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // Ignore user sync errors to avoid breaking employee flow
+                    }
                 }
             }
         }
