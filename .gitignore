@@ -5,4 +5,4 @@
 *.log
 /storage/*.key
 /storage/logs/
-config/database.php
+
