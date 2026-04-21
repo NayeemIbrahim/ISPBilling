@@ -35,7 +35,7 @@ class App
 
         // 1. Check for Controller
         if (isset($url[0])) {
-            $name = str_replace('-', '', ucwords($url[0], '-'));
+            $name = str_replace(['-', '_'], '', ucwords($url[0], '-_'));
             $controllerName = ucfirst($name) . 'Controller';
 
             if (file_exists(__DIR__ . '/../Controllers/' . $controllerName . '.php')) {
@@ -54,7 +54,7 @@ class App
                 $this->method = $url[0];
                 array_shift($url);
             } else {
-                $camelMethod = lcfirst(str_replace('-', '', ucwords($url[0], '-')));
+                $camelMethod = lcfirst(str_replace(['-', '_'], '', ucwords($url[0], '-_')));
                 if (method_exists($controllerClass, $camelMethod)) {
                     $this->method = $camelMethod;
                     array_shift($url);
