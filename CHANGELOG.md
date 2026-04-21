@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-04-21
+### Fixed
+- **SQL Error 1366**: Resolved `Incorrect integer value: ''` crashes on the live app by converting empty form strings to `NULL` for `package_id` and other integer/date columns in `CustomerController`.
+- **Database Connection**: Improved database connection reliability by enabling `PDO::ERRMODE_EXCEPTION` and separating credentials into `config/database.php`.
+
+### Changed
+- **Config Management**: Removed `config/database.php` from `.gitignore` for easier project deployment (upon user request).
+- **Core Refactoring**: Reorganized `app/Core/Database.php` to use constants defined in the configuration file.
+
 ## [1.1.2] - 2026-02-20
 ### Changed
 - **Customer Form Builder**: Improved handling of dropdown options, ensuring they are correctly parsed and persisted in the setup UI.
