@@ -354,30 +354,26 @@ class CustomerController extends Controller
                 $standardFieldsStmt = $this->db->query("SELECT field_key FROM customer_form_fields WHERE is_standard = 1");
                 $standardKeys = $standardFieldsStmt->fetchAll(PDO::FETCH_COLUMN);
 
-                // 2. Prepare Standard Fields SQL
-                $cols = [];
-                $placeholders = [];
-                $values = [];
-
+                // 2. Prepare Standard Fields (Deduplicated)
+                $dbData = [];
                 foreach ($standardKeys as $key) {
-                    // Map special keys if needed
                     $dbKey = ($key === 'connection_type_tech') ? 'connection_type' : $key;
-
                     if (isset($data[$key])) {
-                        $cols[] = $dbKey;
-                        $placeholders[] = "?";
-                        $values[] = $data[$key];
+                        // Sanitize: Convert empty strings to null to avoid SQL errors for integer/date columns
+                        $dbData[$dbKey] = ($data[$key] === '') ? null : $data[$key];
                     }
                 }
 
-                // Add prefix_id if not in dynamic fields
+                // Add prefix_id if available
                 $prefixStmt = $this->db->query("SELECT id FROM id_prefixes WHERE is_default = TRUE LIMIT 1");
                 $prefixId = $prefixStmt->fetchColumn();
                 if ($prefixId) {
-                    $cols[] = 'prefix_id';
-                    $placeholders[] = "?";
-                    $values[] = $prefixId;
+                    $dbData['prefix_id'] = $prefixId;
                 }
+
+                $cols = array_keys($dbData);
+                $placeholders = array_fill(0, count($cols), "?");
+                $values = array_values($dbData);
 
                 $sql = "INSERT INTO customers (" . implode(', ', $cols) . ") VALUES (" . implode(', ', $placeholders) . ")";
                 $stmt = $this->db->prepare($sql);
@@ -448,9 +444,9 @@ class CustomerController extends Controller
                 $data['latitude'] ?? null,
                 $data['longitude'] ?? null,
                 $data['server_info'] ?? null,
-                $data['connection_date'] ?? null,
-                $data['expire_date'] ?? null,
-                $data['mikrotik_id'] ?? 1,
+                ($data['connection_date'] ?? '') === '' ? null : $data['connection_date'],
+                ($data['expire_date'] ?? '') === '' ? null : $data['expire_date'],
+                ($data['mikrotik_id'] ?? '') === '' ? 1 : $data['mikrotik_id'],
                 $data['pppoe_name'] ?? null,
                 $data['pppoe_password'] ?? null,
                 $data['pppoe_profile'] ?? null,
@@ -458,7 +454,7 @@ class CustomerController extends Controller
                 $data['mac_address'] ?? null,
                 $data['bandwidth'] ?? null,
                 $data['comment'] ?? null,
-                $data['package_id'] ?? null,
+                ($data['package_id'] ?? '') === '' ? null : $data['package_id'],
                 (float) ($data['monthly_rent'] ?? 0),
                 $data['payment_id'] ?? null,
                 (float) ($data['due_amount'] ?? 0),
@@ -488,6 +484,29 @@ class CustomerController extends Controller
             try {
                 $stmt = $this->db->prepare($sql);
                 $stmt->execute($values);
+
+                // --- Handle Custom (Meta) Fields for Update ---
+                $customFieldsStmt = $this->db->query("SELECT field_key FROM customer_form_fields WHERE is_standard = 0");
+                $customKeys = $customFieldsStmt->fetchAll(PDO::FETCH_COLUMN);
+
+                foreach ($customKeys as $key) {
+                    if (array_key_exists($key, $data)) {
+                        // Check if meta data already exists
+                        $checkMeta = $this->db->prepare("SELECT id FROM customer_meta WHERE customer_id = ? AND field_key = ?");
+                        $checkMeta->execute([$id, $key]);
+                        
+                        if ($checkMeta->fetch()) {
+                            // Update existing meta
+                            $updateMeta = $this->db->prepare("UPDATE customer_meta SET field_value = ? WHERE customer_id = ? AND field_key = ?");
+                            $updateMeta->execute([$data[$key], $id, $key]);
+                        } else {
+                            // Insert new meta if it didn't exist
+                            $insertMeta = $this->db->prepare("INSERT INTO customer_meta (customer_id, field_key, field_value) VALUES (?, ?, ?)");
+                            $insertMeta->execute([$id, $key, $data[$key]]);
+                        }
+                    }
+                }
+
                 return $this->json(['status' => 'success', 'message' => 'Updated successfully']);
             } catch (\Exception $e) {
                 return $this->json(['status' => 'error', 'message' => $e->getMessage()], 500);

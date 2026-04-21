@@ -321,36 +321,36 @@
                             data-standard="<?= $field['is_standard'] ?>"
                             data-placeholder="<?= htmlspecialchars($field['placeholder'] ?? '') ?>"
                             data-options="<?= htmlspecialchars($field['options'] ?? '') ?>">
-                        <div class="drag-handle"><i class="fas fa-grip-vertical"></i></div>
-                        <div class="field-info">
-                            <span class="field-label">
-                                <?= htmlspecialchars($field['label']) ?>
-                                <?= $field['required'] ? ' *' : '' ?>
-                            </span>
-                            <span class="field-meta">
-                                <?= strtoupper($field['type']) ?> (
-                                <?= $field['field_key'] ?>)
-                            </span>
+                            <div class="drag-handle"><i class="fas fa-grip-vertical"></i></div>
+                            <div class="field-info">
+                                <span class="field-label">
+                                    <?= htmlspecialchars($field['label']) ?>
+                                    <?= $field['required'] ? ' *' : '' ?>
+                                </span>
+                                <span class="field-meta">
+                                    <?= strtoupper($field['type']) ?> (
+                                    <?= $field['field_key'] ?>)
+                                </span>
+                            </div>
+                            <div class="field-actions">
+                                <label class="toggle-switch" title="Toggle Visibility">
+                                    <input type="checkbox" class="visibility-toggle" <?= $field['is_visible'] ? 'checked' : '' ?>
+                                        onchange="markDirty()">
+                                    <span class="slider"></span>
+                                </label>
+                                <button class="btn btn-outline" style="padding: 6px 10px;" onclick="editField(this)"><i
+                                        class="fas fa-edit"></i></button>
+                                <?php if (!$field['is_standard'] && !$field['has_data']): ?>
+                                    <button class="btn btn-outline" style="padding: 6px 10px; color: var(--danger);"
+                                        onclick="deleteField(this)"><i class="fas fa-trash"></i></button>
+                                <?php endif; ?>
+                            </div>
                         </div>
-                        <div class="field-actions">
-                            <label class="toggle-switch" title="Toggle Visibility">
-                                <input type="checkbox" class="visibility-toggle" <?= $field['is_visible'] ? 'checked' : '' ?>
-                                    onchange="markDirty()">
-                                <span class="slider"></span>
-                            </label>
-                            <button class="btn btn-outline" style="padding: 6px 10px;" onclick="editField(this)"><i
-                                    class="fas fa-edit"></i></button>
-                            <?php if (!$field['is_standard']): ?>
-                                <button class="btn btn-outline" style="padding: 6px 10px; color: var(--danger);"
-                                    onclick="deleteField(this)"><i class="fas fa-trash"></i></button>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php endforeach; ?>
+                    <?php endforeach; ?>
+                </div>
             </div>
-        </div>
-    <?php endforeach; ?>
-</div>
+        <?php endforeach; ?>
+    </div>
 </div>
 
 <!-- Add/Edit Field Modal -->

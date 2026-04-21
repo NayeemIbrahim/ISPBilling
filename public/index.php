@@ -21,6 +21,8 @@ spl_autoload_register(function ($class) {
 
 // Load Config
 require_once __DIR__ . '/../config/database.php';
+// Load Database Class
+require_once __DIR__ . '/../app/Core/Database.php';
 // Load Helpers
 require_once __DIR__ . '/../app/Core/Helpers.php';
 

@@ -263,9 +263,15 @@ class SetupController extends Controller
     {
         $sections = $this->db->query("SELECT * FROM customer_form_sections ORDER BY order_index ASC")->fetchAll(PDO::FETCH_ASSOC);
         foreach ($sections as &$section) {
-            $section['fields'] = $this->db->prepare("SELECT * FROM customer_form_fields WHERE section_id = ? ORDER BY order_index ASC");
-            $section['fields']->execute([$section['id']]);
-            $section['fields'] = $section['fields']->fetchAll(PDO::FETCH_ASSOC);
+            $stmt = $this->db->prepare("
+                SELECT f.*, 
+                (SELECT COUNT(*) FROM customer_meta m WHERE m.field_key = f.field_key AND m.field_value IS NOT NULL AND m.field_value != '') as has_data
+                FROM customer_form_fields f 
+                WHERE f.section_id = ? 
+                ORDER BY f.order_index ASC
+            ");
+            $stmt->execute([$section['id']]);
+            $section['fields'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
         $this->view('setup/customer_form', [
@@ -351,6 +357,18 @@ class SetupController extends Controller
             }
             if (isset($data['deleted_fields'])) {
                 foreach ($data['deleted_fields'] as $id) {
+                    // Safety check: Don't delete if field has data
+                    $stmtCheck = $this->db->prepare("SELECT field_key FROM customer_form_fields WHERE id = ?");
+                    $stmtCheck->execute([$id]);
+                    $fKey = $stmtCheck->fetchColumn();
+
+                    if ($fKey) {
+                        $checkMeta = $this->db->prepare("SELECT COUNT(*) FROM customer_meta WHERE field_key = ? AND field_value IS NOT NULL AND field_value != ''");
+                        $checkMeta->execute([$fKey]);
+                        if ($checkMeta->fetchColumn() > 0) {
+                            continue; // Skip deletion if data exists
+                        }
+                    }
                     $this->db->prepare("DELETE FROM customer_form_fields WHERE id = ? AND is_standard = 0")->execute([$id]);
                 }
             }
