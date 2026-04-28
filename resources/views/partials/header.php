@@ -47,8 +47,8 @@ $path = $data['path'] ?? '';
             <li class="dropdown">
                 <a href="#">Receipt</a>
                 <div class="dropdown-content">
-                    <a href="#">Area Wise Receipt</a>
-                    <a href="#">Customer Wise Receipt</a>
+                    <a href="<?= url('receipt/area-wise') ?>">Area Wise Receipt</a>
+                    <a href="<?= url('receipt/customer-wise') ?>">Customer Wise Receipt</a>
                     <a href="#">Update Bill</a>
                 </div>
             </li>
@@ -78,7 +78,7 @@ $path = $data['path'] ?? '';
                     <a href="#">Address Setup</a>
                     <a href="<?= url('setup/column-preview') ?>">Column Preview Setup</a>
                     <a href="<?= url('setup/customer-form') ?>">Customer Form Setup</a>
-                    <a href="#">Print Preview Setup</a>
+                    <a href="<?= url('setup/print-preview') ?>">Print Preview Setup</a>
                     <a href="<?= url('complain') ?>">Complain Setup</a>
                     <a href="<?= url('employee') ?>">Employee Setup</a>
                     <a href="<?= url('setup/package') ?>">Package Setup</a>
