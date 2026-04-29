@@ -344,8 +344,8 @@ class CustomerController extends Controller
         } catch (\PDOException $e) {
             // Instead of a 500 error, show the exact database error
             die("Database Error on Create Customer Page: " . $e->getMessage() . "<br>Please ensure you have pulled the latest code and your database user has CREATE/ALTER privileges.");
-        } catch (\Exception $e) {
-            die("Error on Create Customer Page: " . $e->getMessage());
+        } catch (\Throwable $e) {
+            die("Fatal PHP Error on Create Customer Page: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
         }
     }
 
