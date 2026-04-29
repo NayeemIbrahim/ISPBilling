@@ -425,9 +425,21 @@ class CustomerController extends Controller
             // 5. Seed Sections if empty
             $countSections = $this->db->query("SELECT COUNT(*) FROM customer_form_sections")->fetchColumn();
             if ($countSections == 0) {
-                // If sections are missing, we should probably run a minimal seed or point the user to the setup page
-                // For now, let's just ensure it doesn't crash. 
-                // The user can run the full SQL script from the database folder.
+                // Read and execute the seed file to restore the form setup
+                $sqlFile = __DIR__ . '/../../database/live_update_1.1.0.sql';
+                if (file_exists($sqlFile)) {
+                    $queries = explode(';', file_get_contents($sqlFile));
+                    foreach ($queries as $query) {
+                        $query = trim($query);
+                        if (!empty($query)) {
+                            try {
+                                $this->db->exec($query);
+                            } catch (\Exception $e) {
+                                // Ignore individual statement errors during seed
+                            }
+                        }
+                    }
+                }
             }
 
             // 6. Ensure Customers Table has required columns
