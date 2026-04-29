@@ -313,33 +313,40 @@ class CustomerController extends Controller
         // Ensure all required tables and columns exist
         $this->ensureTablesExist();
 
-        $employees = $this->db->query("SELECT id, name FROM employees ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
-        $packages = $this->db->query("SELECT id, name, price FROM packages ORDER BY price ASC")->fetchAll(PDO::FETCH_ASSOC);
-        
-        $prefixStmt = $this->db->query("SELECT prefix_code FROM id_prefixes WHERE is_default = TRUE LIMIT 1");
-        $defaultPrefix = $prefixStmt->fetchColumn() ?: '';
-        
-        // Use MAX(id) as a safer alternative to information_schema for live environments
-        $nextIdStmt = $this->db->query("SELECT MAX(id) FROM customers");
-        $nextId = ($nextIdStmt->fetchColumn() ?: 0) + 1;
+        try {
+            $employees = $this->db->query("SELECT id, name FROM employees ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
+            $packages = $this->db->query("SELECT id, name, price FROM packages ORDER BY price ASC")->fetchAll(PDO::FETCH_ASSOC);
+            
+            $prefixStmt = $this->db->query("SELECT prefix_code FROM id_prefixes WHERE is_default = TRUE LIMIT 1");
+            $defaultPrefix = $prefixStmt->fetchColumn() ?: '';
+            
+            // Use MAX(id) as a safer alternative to information_schema for live environments
+            $nextIdStmt = $this->db->query("SELECT MAX(id) FROM customers");
+            $nextId = ($nextIdStmt->fetchColumn() ?: 0) + 1;
 
-        // Fetch Dynamic Form Configuration
-        $sections = $this->db->query("SELECT * FROM customer_form_sections ORDER BY order_index ASC")->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($sections as &$section) {
-            $section['fields'] = $this->db->prepare("SELECT * FROM customer_form_fields WHERE section_id = ? AND is_visible = 1 ORDER BY order_index ASC");
-            $section['fields']->execute([$section['id']]);
-            $section['fields'] = $section['fields']->fetchAll(PDO::FETCH_ASSOC);
+            // Fetch Dynamic Form Configuration
+            $sections = $this->db->query("SELECT * FROM customer_form_sections ORDER BY order_index ASC")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($sections as &$section) {
+                $section['fields'] = $this->db->prepare("SELECT * FROM customer_form_fields WHERE section_id = ? AND is_visible = 1 ORDER BY order_index ASC");
+                $section['fields']->execute([$section['id']]);
+                $section['fields'] = $section['fields']->fetchAll(PDO::FETCH_ASSOC);
+            }
+
+            $this->view('customers/create', [
+                'title' => 'Create Customer',
+                'path' => '/customer/create',
+                'employees' => $employees,
+                'packages' => $packages,
+                'defaultPrefix' => $defaultPrefix,
+                'nextId' => $nextId,
+                'formSections' => $sections
+            ]);
+        } catch (\PDOException $e) {
+            // Instead of a 500 error, show the exact database error
+            die("Database Error on Create Customer Page: " . $e->getMessage() . "<br>Please ensure you have pulled the latest code and your database user has CREATE/ALTER privileges.");
+        } catch (\Exception $e) {
+            die("Error on Create Customer Page: " . $e->getMessage());
         }
-
-        $this->view('customers/create', [
-            'title' => 'Create Customer',
-            'path' => '/customer/create',
-            'employees' => $employees,
-            'packages' => $packages,
-            'defaultPrefix' => $defaultPrefix,
-            'nextId' => $nextId,
-            'formSections' => $sections
-        ]);
     }
 
     /**
