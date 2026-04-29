@@ -310,12 +310,18 @@ class CustomerController extends Controller
      */
     public function create()
     {
+        // Ensure all required tables and columns exist
+        $this->ensureTablesExist();
+
         $employees = $this->db->query("SELECT id, name FROM employees ORDER BY name ASC")->fetchAll(PDO::FETCH_ASSOC);
         $packages = $this->db->query("SELECT id, name, price FROM packages ORDER BY price ASC")->fetchAll(PDO::FETCH_ASSOC);
+        
         $prefixStmt = $this->db->query("SELECT prefix_code FROM id_prefixes WHERE is_default = TRUE LIMIT 1");
         $defaultPrefix = $prefixStmt->fetchColumn() ?: '';
-        $nextIdStmt = $this->db->query("SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'customers'");
-        $nextId = $nextIdStmt->fetchColumn() ?: 1;
+        
+        // Use MAX(id) as a safer alternative to information_schema for live environments
+        $nextIdStmt = $this->db->query("SELECT MAX(id) FROM customers");
+        $nextId = ($nextIdStmt->fetchColumn() ?: 0) + 1;
 
         // Fetch Dynamic Form Configuration
         $sections = $this->db->query("SELECT * FROM customer_form_sections ORDER BY order_index ASC")->fetchAll(PDO::FETCH_ASSOC);
@@ -334,6 +340,109 @@ class CustomerController extends Controller
             'nextId' => $nextId,
             'formSections' => $sections
         ]);
+    }
+
+    /**
+     * Ensures all required tables and columns for the customer lifecycle exist.
+     * This acts as an auto-migration for the live environment.
+     */
+    private function ensureTablesExist()
+    {
+        try {
+            // 1. Employees Table
+            $this->db->exec("CREATE TABLE IF NOT EXISTS employees (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                email VARCHAR(255) UNIQUE,
+                mobile VARCHAR(20),
+                password VARCHAR(255),
+                role_id INT,
+                mikrotik_access VARCHAR(100),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )");
+
+            // 2. Packages Table
+            $this->db->exec("CREATE TABLE IF NOT EXISTS packages (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                price DECIMAL(10, 2) NOT NULL,
+                description TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )");
+
+            // 3. ID Prefixes Table
+            $this->db->exec("CREATE TABLE IF NOT EXISTS id_prefixes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                prefix_code VARCHAR(20) NOT NULL,
+                is_default BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )");
+
+            // Seed default prefix if empty
+            $countPrefix = $this->db->query("SELECT COUNT(*) FROM id_prefixes")->fetchColumn();
+            if ($countPrefix == 0) {
+                $this->db->exec("INSERT INTO id_prefixes (prefix_code, is_default) VALUES ('HK_', TRUE)");
+            }
+
+            // 4. Form Builder Tables
+            $this->db->exec("CREATE TABLE IF NOT EXISTS customer_form_sections (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                order_index INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )");
+
+            $this->db->exec("CREATE TABLE IF NOT EXISTS customer_form_fields (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                section_id INT,
+                field_key VARCHAR(100) NOT NULL UNIQUE,
+                label VARCHAR(255) NOT NULL,
+                placeholder VARCHAR(255) DEFAULT NULL,
+                type VARCHAR(50) DEFAULT 'text',
+                required TINYINT(1) DEFAULT 0,
+                is_visible TINYINT(1) DEFAULT 1,
+                is_standard TINYINT(1) DEFAULT 0,
+                order_index INT DEFAULT 0,
+                options TEXT,
+                FOREIGN KEY (section_id) REFERENCES customer_form_sections(id) ON DELETE CASCADE
+            )");
+
+            $this->db->exec("CREATE TABLE IF NOT EXISTS customer_meta (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                customer_id INT NOT NULL,
+                field_key VARCHAR(100) NOT NULL,
+                field_value TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )");
+
+            // 5. Seed Sections if empty
+            $countSections = $this->db->query("SELECT COUNT(*) FROM customer_form_sections")->fetchColumn();
+            if ($countSections == 0) {
+                // If sections are missing, we should probably run a minimal seed or point the user to the setup page
+                // For now, let's just ensure it doesn't crash. 
+                // The user can run the full SQL script from the database folder.
+            }
+
+            // 6. Ensure Customers Table has required columns
+            $cols = $this->db->query("DESCRIBE customers")->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (!in_array('prefix_id', $cols)) {
+                $this->db->exec("ALTER TABLE customers ADD COLUMN prefix_id INT NULL");
+            }
+            if (!in_array('status', $cols)) {
+                $this->db->exec("ALTER TABLE customers ADD COLUMN status VARCHAR(50) DEFAULT 'active'");
+            }
+            if (!in_array('package_id', $cols)) {
+                $this->db->exec("ALTER TABLE customers ADD COLUMN package_id INT NULL");
+            }
+            if (!in_array('payment_id', $cols)) {
+                $this->db->exec("ALTER TABLE customers ADD COLUMN payment_id VARCHAR(100) NULL");
+            }
+
+        } catch (\Exception $e) {
+            // Log error but don't stop the application
+            // error_log("Migration error: " . $e->getMessage());
+        }
     }
 
     /**

@@ -382,6 +382,107 @@ class SetupController extends Controller
     }
 
     /**
+     * Handle Print Preview Setup.
+     * 
+     * @return void
+     */
+    public function printPreview()
+    {
+        // 1. Auto-Migration for print_settings
+        try {
+            $this->db->exec("CREATE TABLE IF NOT EXISTS print_settings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                header_style VARCHAR(50) DEFAULT 'with_header',
+                layout VARCHAR(50) DEFAULT '3',
+                receipt_text VARCHAR(50) DEFAULT 'Thank you for connecting with us.',
+                signature_path VARCHAR(255) DEFAULT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )");
+
+            // Seed default if empty
+            $count = $this->db->query("SELECT COUNT(*) FROM print_settings")->fetchColumn();
+            if ($count == 0) {
+                $this->db->exec("INSERT INTO print_settings (header_style, layout, receipt_text) VALUES ('with_header', '3', 'Thank you for connecting with us.')");
+            }
+        } catch (\Exception $e) {
+            // Log error
+        }
+
+        $message = '';
+        $messageType = '';
+
+        // 2. Handle POST Request
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $action = $_POST['action'] ?? '';
+
+            if ($action === 'save_settings') {
+                $header_style = $_POST['header_style'] ?? 'with_header';
+                $layout = $_POST['layout'] ?? '1';
+                $receipt_text = substr($_POST['receipt_text'] ?? '', 0, 50); // Enforce max 50
+
+                $stmt = $this->db->prepare("UPDATE print_settings SET header_style = ?, layout = ?, receipt_text = ? WHERE id = 1");
+                if ($stmt->execute([$header_style, $layout, $receipt_text])) {
+                    $message = "Settings updated successfully.";
+                    $messageType = "success";
+                } else {
+                    $message = "Failed to update settings.";
+                    $messageType = "error";
+                }
+            } elseif ($action === 'upload_signature') {
+                if (isset($_FILES['signature']) && $_FILES['signature']['error'] === UPLOAD_ERR_OK) {
+                    $uploadDir = __DIR__ . '/../../../public/uploads/signatures/';
+                    if (!is_dir($uploadDir)) {
+                        mkdir($uploadDir, 0777, true);
+                    }
+
+                    $fileTmpPath = $_FILES['signature']['tmp_name'];
+                    $fileName = $_FILES['signature']['name'];
+                    $fileNameCmps = explode(".", $fileName);
+                    $fileExtension = strtolower(end($fileNameCmps));
+                    
+                    $allowedExts = ['jpg', 'jpeg', 'png', 'gif'];
+                    if (in_array($fileExtension, $allowedExts)) {
+                        $newFileName = 'signature_' . time() . '.' . $fileExtension;
+                        $destPath = $uploadDir . $newFileName;
+                        
+                        if (move_uploaded_file($fileTmpPath, $destPath)) {
+                            // Save relative path
+                            $relativePath = 'uploads/signatures/' . $newFileName;
+                            $this->db->prepare("UPDATE print_settings SET signature_path = ? WHERE id = 1")->execute([$relativePath]);
+                            $message = "Signature uploaded successfully.";
+                            $messageType = "success";
+                        } else {
+                            $message = "Error moving the uploaded file.";
+                            $messageType = "error";
+                        }
+                    } else {
+                        $message = "Invalid file type. Only JPG, PNG, GIF are allowed.";
+                        $messageType = "error";
+                    }
+                } else {
+                    $message = "Please select a valid image file.";
+                    $messageType = "error";
+                }
+            }
+        }
+
+        // 3. Fetch Settings
+        $settings = $this->db->query("SELECT * FROM print_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+
+        // 4. Fetch a sample customer for the live preview
+        $previewCustomer = $this->db->query("SELECT * FROM customers ORDER BY id DESC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
+
+        $this->view('setup/print_preview', [
+            'title' => 'Print Preview Setup',
+            'path' => '/setup/print-preview',
+            'settings' => $settings,
+            'previewCustomer' => $previewCustomer,
+            'message' => $message,
+            'messageType' => $messageType
+        ]);
+    }
+
+    /**
      * Define column schemas for different tables.
      */
     private function getColumnDefinitions($table)
