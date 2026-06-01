@@ -686,4 +686,372 @@ class SetupController extends Controller
                 ];
         }
     }
+
+    /**
+     * Private helper to execute payment migrations on-the-fly.
+     */
+    private function paymentSettingsMigrationCheck()
+    {
+        try {
+            $this->db->exec("CREATE TABLE IF NOT EXISTS payment_settings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                gateway_name VARCHAR(50) NOT NULL UNIQUE,
+                receive_number VARCHAR(20) NOT NULL,
+                status TINYINT(1) DEFAULT 1,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )");
+
+            $count = $this->db->query("SELECT COUNT(*) FROM payment_settings")->fetchColumn();
+            if ($count == 0) {
+                $this->db->exec("INSERT INTO payment_settings (gateway_name, receive_number, status) VALUES 
+                    ('bkash', '01700000000', 1),
+                    ('nagad', '01800000000', 1),
+                    ('rocket', '01900000000', 1)
+                ");
+            }
+
+            $this->db->exec("CREATE TABLE IF NOT EXISTS auto_payment_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                gateway VARCHAR(50) NOT NULL,
+                sender_number VARCHAR(20) NOT NULL,
+                receiver_number VARCHAR(20) NOT NULL,
+                amount DECIMAL(10, 2) NOT NULL,
+                trx_id VARCHAR(100) NOT NULL,
+                reference VARCHAR(100) DEFAULT NULL,
+                status ENUM('success', 'unmatched', 'error') DEFAULT 'unmatched',
+                customer_id INT NULL,
+                error_message TEXT DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE SET NULL
+            )");
+        } catch (\Exception $e) {
+            // Silently handle
+        }
+    }
+
+    /**
+     * General settings page for bKash, Nagad, Rocket receive numbers and logged transaction histories.
+     */
+    public function paymentSettings()
+    {
+        // 1. Run Migrations
+        $this->paymentSettingsMigrationCheck();
+
+        $message = '';
+        $messageType = '';
+
+        // 2. Handle POST Settings update
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $bkash_number = $_POST['bkash_number'] ?? '';
+            $bkash_status = isset($_POST['bkash_status']) ? 1 : 0;
+
+            $nagad_number = $_POST['nagad_number'] ?? '';
+            $nagad_status = isset($_POST['nagad_status']) ? 1 : 0;
+
+            $rocket_number = $_POST['rocket_number'] ?? '';
+            $rocket_status = isset($_POST['rocket_status']) ? 1 : 0;
+
+            try {
+                $stmt = $this->db->prepare("UPDATE payment_settings SET receive_number = ?, status = ? WHERE gateway_name = ?");
+                $stmt->execute([$bkash_number, $bkash_status, 'bkash']);
+                $stmt->execute([$nagad_number, $nagad_status, 'nagad']);
+                $stmt->execute([$rocket_number, $rocket_status, 'rocket']);
+
+                $message = "Payment Settings updated successfully!";
+                $messageType = "success";
+            } catch (\PDOException $e) {
+                $message = "Failed to save settings: " . $e->getMessage();
+                $messageType = "error";
+            }
+        }
+
+        // 3. Fetch Settings
+        $settings = [];
+        $rows = $this->db->query("SELECT * FROM payment_settings")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $row) {
+            $settings[$row['gateway_name']] = $row;
+        }
+
+        // 4. Fetch Logs with Resolved Customer details
+        $logs = $this->db->query("
+            SELECT l.*, c.full_name as customer_name 
+            FROM auto_payment_logs l 
+            LEFT JOIN customers c ON l.customer_id = c.id 
+            ORDER BY l.id DESC 
+            LIMIT 100
+        ")->fetchAll(PDO::FETCH_ASSOC);
+
+        // 5. Render View
+        $this->view('setup/payment_settings', [
+            'title' => 'Payment Settings Setup',
+            'path' => '/setup/payment-settings',
+            'settings' => $settings,
+            'logs' => $logs,
+            'message' => $message,
+            'messageType' => $messageType
+        ]);
+    }
+
+    /**
+     * Webhook Endpoint for Automatic Payment Callbacks (bKash, Nagad, Rocket)
+     */
+    public function mfsCallback()
+    {
+        header('Content-Type: application/json');
+
+        // 1. Get raw input data (for JSON payloads)
+        $rawInput = file_get_contents('php://input');
+        $jsonData = json_decode($rawInput, true);
+
+        // Parse fields from JSON or standard POST
+        $gateway = trim(strtolower($jsonData['gateway'] ?? $_POST['gateway'] ?? ''));
+        $sender = trim($jsonData['sender'] ?? $_POST['sender'] ?? '');
+        $receiver = trim($jsonData['receiver'] ?? $_POST['receiver'] ?? '');
+        $amount = floatval($jsonData['amount'] ?? $_POST['amount'] ?? 0);
+        $trx_id = trim($jsonData['trx_id'] ?? $_POST['trx_id'] ?? '');
+        $reference = trim($jsonData['reference'] ?? $_POST['reference'] ?? '');
+
+        // 2. Validate essential fields
+        if (empty($gateway) || empty($trx_id) || $amount <= 0) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Invalid transaction payload. Missing gateway, trx_id, or valid amount.'
+            ]);
+            return;
+        }
+
+        // 3. Ensure tables exist
+        $this->paymentSettingsMigrationCheck();
+
+        // 4. Validate that the receiver number matches our settings and that the gateway is active
+        $stmt = $this->db->prepare("SELECT * FROM payment_settings WHERE gateway_name = ?");
+        $stmt->execute([$gateway]);
+        $gatewaySetting = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$gatewaySetting) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => "Gateway '$gateway' is not supported."
+            ]);
+            return;
+        }
+
+        if (intval($gatewaySetting['status']) !== 1) {
+            // Log transaction attempt for audit, but mark as error due to inactive gateway
+            $insLog = $this->db->prepare("INSERT INTO auto_payment_logs (gateway, sender_number, receiver_number, amount, trx_id, reference, status, error_message) VALUES (?, ?, ?, ?, ?, ?, 'error', ?)");
+            $insLog->execute([$gateway, $sender, $receiver, $amount, $trx_id, $reference, "Gateway channel is currently disabled."]);
+            
+            echo json_encode([
+                'status' => 'error',
+                'message' => "Gateway '$gateway' is currently disabled in settings."
+            ]);
+            return;
+        }
+
+        // Check if TrxID has already been processed to prevent double crediting
+        $chkTrx = $this->db->prepare("SELECT id FROM collections WHERE invoice_no = ?");
+        $chkTrx->execute([$trx_id]);
+        if ($chkTrx->fetch()) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => "Duplicate Transaction. TrxID '$trx_id' has already been processed."
+            ]);
+            return;
+        }
+
+        // Check logs to make sure this trx_id isn't already logged as success
+        $chkLog = $this->db->prepare("SELECT id FROM auto_payment_logs WHERE trx_id = ? AND status = 'success'");
+        $chkLog->execute([$trx_id]);
+        if ($chkLog->fetch()) {
+            echo json_encode([
+                'status' => 'error',
+                'message' => "Duplicate Transaction. TrxID '$trx_id' was previously successfully processed."
+            ]);
+            return;
+        }
+
+        // 5. Heuristic Sequential Customer Matcher (User priority order)
+        $customer = null;
+        $matchMethod = '';
+
+        // Match Step 1: Match by exact Payment ID (Gateway ID) in the Reference
+        if (!empty($reference)) {
+            $stmt = $this->db->prepare("
+                SELECT c.*, p.name as package_name, ip.prefix_code 
+                FROM customers c 
+                LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id 
+                LEFT JOIN packages p ON c.package_id = p.id 
+                WHERE c.payment_id = ?
+            ");
+            $stmt->execute([$reference]);
+            $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($customer) {
+                $matchMethod = "Payment ID: " . $reference;
+            }
+        }
+
+        // Match Step 2: Match by Customer ID in the Reference (parsed or raw)
+        if (!$customer && !empty($reference)) {
+            // Look up all prefixes from the system
+            $prefixes = $this->db->query("SELECT prefix_code FROM id_prefixes")->fetchAll(PDO::FETCH_COLUMN);
+            $parsedId = $reference;
+            foreach ($prefixes as $p) {
+                $pClean = trim($p, '_- ');
+                if (!empty($pClean) && stripos($reference, $pClean) === 0) {
+                    $parsedId = substr($reference, strlen($pClean));
+                    $parsedId = trim($parsedId, '_- ');
+                    break;
+                }
+            }
+
+            if (is_numeric($parsedId)) {
+                $stmt = $this->db->prepare("
+                    SELECT c.*, p.name as package_name, ip.prefix_code 
+                    FROM customers c 
+                    LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id 
+                    LEFT JOIN packages p ON c.package_id = p.id 
+                    WHERE c.id = ?
+                ");
+                $stmt->execute([$parsedId]);
+                $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($customer) {
+                    $matchMethod = "Customer ID: " . $parsedId;
+                }
+            }
+        }
+
+        // Match Step 3: Match by PPPoE Username in the Reference
+        if (!$customer && !empty($reference)) {
+            $stmt = $this->db->prepare("
+                SELECT c.*, p.name as package_name, ip.prefix_code 
+                FROM customers c 
+                LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id 
+                LEFT JOIN packages p ON c.package_id = p.id 
+                WHERE LOWER(c.pppoe_name) = ?
+            ");
+            $stmt->execute([strtolower($reference)]);
+            $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($customer) {
+                $matchMethod = "PPPoE Username: " . $reference;
+            }
+        }
+
+        // Match Step 4: Match by Mobile Numbers of the Customer (using Reference or Sender number)
+        if (!$customer) {
+            $phonesToTry = array_filter(array_unique([$reference, $sender]));
+            foreach ($phonesToTry as $phone) {
+                if (empty($phone) || strlen($phone) < 8) continue;
+                
+                $cleanPhone = $phone;
+                if (strpos($phone, '88') === 0) {
+                    $cleanPhone = substr($phone, 2);
+                }
+
+                $stmt = $this->db->prepare("
+                    SELECT c.*, p.name as package_name, ip.prefix_code 
+                    FROM customers c 
+                    LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id 
+                    LEFT JOIN packages p ON c.package_id = p.id 
+                    WHERE c.mobile_no = ? OR c.alt_mobile_no = ? OR c.mobile_no = ? OR c.alt_mobile_no = ?
+                ");
+                $stmt->execute([$phone, $phone, $cleanPhone, $cleanPhone]);
+                $customer = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($customer) {
+                    $matchMethod = "Mobile Match (" . $phone . ")";
+                    break;
+                }
+            }
+        }
+
+        // 6. Execute billing update if customer matched
+        if ($customer) {
+            try {
+                $this->db->beginTransaction();
+
+                $customer_id = $customer['id'];
+                $monthlyRent = floatval($customer['monthly_rent']);
+                $currentExpireStr = $customer['expire_date'];
+                $autoDisableMonth = intval($customer['auto_disable_month'] ?? 0);
+                $extraDays = intval($customer['extra_days'] ?? 0);
+
+                // Calculate expiry date:
+                // Rule: If paid amount < monthly rent, don't extend expiry, just reduce due
+                $baseDate = !empty($currentExpireStr) ? new \DateTime($currentExpireStr) : new \DateTime();
+                
+                if ($amount >= $monthlyRent && $monthlyRent > 0) {
+                    $monthsToAdd = floor($amount / $monthlyRent);
+                    $baseDate->modify("+$monthsToAdd month");
+
+                    if ($autoDisableMonth > 0) {
+                        $baseDate->modify("+$autoDisableMonth month");
+                    }
+                    if ($extraDays > 0) {
+                        $baseDate->modify("+$extraDays day");
+                    }
+                }
+                $next_expire_date = $baseDate->format('Y-m-d');
+
+                // 6.1 Insert into collections table
+                $note = "Auto Paid via " . ucfirst($gateway) . ". Sender: $sender, Ref: $reference (Matched via $matchMethod)";
+                $colSql = "INSERT INTO collections (customer_id, amount, payment_method, invoice_no, next_expire_date, note, collected_by) 
+                           VALUES (?, ?, ?, ?, ?, ?, ?)";
+                $colStmt = $this->db->prepare($colSql);
+                // Mark collected_by as NULL (processed automatically)
+                $colStmt->execute([$customer_id, $amount, ucfirst($gateway) . ' (Auto)', $trx_id, $next_expire_date, $note, null]);
+
+                // 6.2 Update customer's balance, expire date, and status to active
+                $updSql = "UPDATE customers SET 
+                            due_amount = due_amount - ?, 
+                            expire_date = ?, 
+                            status = 'active' 
+                           WHERE id = ?";
+                $updStmt = $this->db->prepare($updSql);
+                $updStmt->execute([$amount, $next_expire_date, $customer_id]);
+
+                // 6.3 Log success in auto_payment_logs
+                $logSql = "INSERT INTO auto_payment_logs (gateway, sender_number, receiver_number, amount, trx_id, reference, status, customer_id) 
+                           VALUES (?, ?, ?, ?, ?, ?, 'success', ?)";
+                $this->db->prepare($logSql)->execute([$gateway, $sender, $receiver, $amount, $trx_id, $reference, $customer_id]);
+
+                $this->db->commit();
+
+                // Format response
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => "Payment of $amount TK successfully credited to customer '{$customer['full_name']}'!",
+                    'customer_name' => $customer['full_name'],
+                    'monthly_rent' => $monthlyRent,
+                    'new_due' => floatval($customer['due_amount']) - $amount,
+                    'new_expiry' => $next_expire_date
+                ]);
+
+            } catch (\Exception $e) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+
+                // Log error
+                $logSql = "INSERT INTO auto_payment_logs (gateway, sender_number, receiver_number, amount, trx_id, reference, status, customer_id, error_message) 
+                           VALUES (?, ?, ?, ?, ?, ?, 'error', ?, ?)";
+                $this->db->prepare($logSql)->execute([$gateway, $sender, $receiver, $amount, $trx_id, $reference, $customer['id'], $e->getMessage()]);
+
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Exception during payment processing: ' . $e->getMessage()
+                ]);
+            }
+
+        } else {
+            // No matching customer found (Unmatched)
+            $logSql = "INSERT INTO auto_payment_logs (gateway, sender_number, receiver_number, amount, trx_id, reference, status, error_message) 
+                       VALUES (?, ?, ?, ?, ?, ?, 'unmatched', ?)";
+            $this->db->prepare($logSql)->execute([$gateway, $sender, $receiver, $amount, $trx_id, $reference, "Could not match reference '$reference' or sender '$sender' to any customer."]);
+
+            echo json_encode([
+                'status' => 'unmatched',
+                'message' => "Payment of $amount TK logged. However, no active customer matched the reference '$reference' or sender '$sender'."
+            ]);
+        }
+    }
 }
+

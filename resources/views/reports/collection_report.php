@@ -287,6 +287,37 @@
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 12px;
     }
+
+    /* Print Money Receipt Button */
+    .btn-print-sm {
+        background: #eff6ff;
+        color: #2563eb;
+        border: 1px solid #bfdbfe;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.775rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .btn-print-sm:hover {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+    }
 </style>
 
 <div class="dashboard-container">
@@ -441,6 +472,7 @@
                                 ?>
                                 <th style="text-align: <?= $align ?>;"><?= htmlspecialchars($label) ?></th>
                             <?php endforeach; ?>
+                            <th style="text-align: center;" class="no-print">Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -498,11 +530,16 @@
                                             <?php endif; ?>
                                         </td>
                                     <?php endforeach; ?>
+                                    <td class="no-print" style="text-align: center;">
+                                        <a href="<?= url('receipt/collection') ?>?id=<?= $col['transaction_id'] ?>" target="_blank" class="btn-print-sm" title="Print Money Receipt">
+                                            <i class="fas fa-print"></i> Receipt
+                                        </a>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="<?= count($tableColumns) ?>"
+                                <td colspan="<?= count($tableColumns) + 1 ?>"
                                     style="text-align: center; padding: 40px; color: #64748b;">
                                     <div style="margin-bottom: 10px; font-size: 2rem; opacity: 0.3;"><i
                                             class="fas fa-search"></i></div>

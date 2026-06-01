@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-06-01
+### Added
+- **MFS Payment Settings Setup**: Integrated a beautiful setup dashboard under `Setup > Payment Settings Setup` to configure bKash, Nagad, and Rocket receive numbers and toggles.
+- **Automated Webhook Callback (`/setup/mfs-callback`)**: Added an automated callback endpoint that securely processes incoming transaction payloads (raw JSON or POST), resolves duplicate transactions, and reactivates accounts.
+- **Heuristic Sequential Customer Matcher**: Implemented priority resolution matching Payment ID &rarr; parsed Customer ID &rarr; PPPoE Username &rarr; fuzzy mobile numbers.
+- **MFS Transaction Simulator**: Developed an interactive Sandbox Simulator with a dark terminal console to test and display webhook matching and billing updates in real-time.
+- **MFS Auto-Payment Logs**: Built a transaction log list for auditing automated payment histories.
+- **Money Receipt Printing in Collection Report**: Added an "Action" column to the collection report page to print detailed, multi-copy money receipts for individual past transaction records, honoring standard print settings (signature overlays, layout templates, copy counts).
+- **Dynamic Received Amount Receipt Layout**: Modified printable receipt templates to fetch and display the actual received amount, payment channel, and TrxID, with precise breakdowns for Previous Outstanding, Amount Paid, and remaining Current Due.
+
+### Fixed
+- **Customer Wise Search Engine**: Upgraded `customerWise` and `searchAjax` searches to support prefix codes (`TEST-705` / `TEST-703`) and `payment_id` matches.
+
 ## [1.1.3] - 2026-04-21
 ### Fixed
 - **SQL Error 1366**: Resolved `Incorrect integer value: ''` crashes on the live app by converting empty form strings to `NULL` for `package_id` and other integer/date columns in `CustomerController`.

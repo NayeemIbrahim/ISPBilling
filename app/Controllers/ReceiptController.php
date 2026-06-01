@@ -94,10 +94,14 @@ class ReceiptController extends Controller
                       FROM customers c 
                       LEFT JOIN packages p ON c.package_id = p.id 
                       LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id 
-                      WHERE c.full_name LIKE ? OR c.mobile_no LIKE ? OR c.pppoe_name LIKE ? OR c.id LIKE ? 
+                      WHERE c.full_name LIKE ? 
+                         OR c.mobile_no LIKE ? 
+                         OR c.pppoe_name LIKE ? 
+                         OR c.payment_id LIKE ? 
+                         OR CONCAT(COALESCE(ip.prefix_code, ''), c.id) LIKE ? 
                       ORDER BY c.full_name ASC";
             $stmt = $this->db->prepare($query);
-            $stmt->execute(["%$search%", "%$search%", "%$search%", "%$search%"]);
+            $stmt->execute(["%$search%", "%$search%", "%$search%", "%$search%", "%$search%"]);
             $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
 
@@ -126,10 +130,14 @@ class ReceiptController extends Controller
                   FROM customers c 
                   LEFT JOIN packages p ON c.package_id = p.id 
                   LEFT JOIN id_prefixes ip ON c.prefix_id = ip.id 
-                  WHERE c.full_name LIKE ? OR c.mobile_no LIKE ? OR c.pppoe_name LIKE ? OR c.id LIKE ? 
+                  WHERE c.full_name LIKE ? 
+                     OR c.mobile_no LIKE ? 
+                     OR c.pppoe_name LIKE ? 
+                     OR c.payment_id LIKE ? 
+                     OR CONCAT(COALESCE(ip.prefix_code, ''), c.id) LIKE ? 
                   ORDER BY c.full_name ASC LIMIT 50";
         $stmt = $this->db->prepare($query);
-        $stmt->execute(["%$q%", "%$q%", "%$q%", "%$q%"]);
+        $stmt->execute(["%$q%", "%$q%", "%$q%", "%$q%", "%$q%"]);
         $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         header('Content-Type: application/json');
@@ -142,7 +150,7 @@ class ReceiptController extends Controller
     public function print()
     {
         $idsStr = $_GET['ids'] ?? '';
-        $month = $_GET['month'] ?? date('Y-m');
+        $month = $_GET['month'] ?? '';
         if (!$idsStr) {
             die("No IDs provided.");
         }
@@ -158,12 +166,105 @@ class ReceiptController extends Controller
         $stmt->execute($ids);
         $customers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+        // Fetch received payments for each customer
+        foreach ($customers as &$cust) {
+            $received = 0.00;
+            $paymentDate = null;
+            $paymentMethod = 'N/A';
+            $invoiceNo = '';
+
+            // If a specific month is selected, try to get the payment made in that month
+            if (!empty($month)) {
+                $pStmt = $this->db->prepare("
+                    SELECT amount, collection_date, payment_method, invoice_no 
+                    FROM collections 
+                    WHERE customer_id = ? AND DATE_FORMAT(collection_date, '%Y-%m') = ? 
+                    ORDER BY id DESC LIMIT 1
+                ");
+                $pStmt->execute([$cust['id'], $month]);
+                $payment = $pStmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($payment) {
+                    $received = floatval($payment['amount']);
+                    $paymentDate = $payment['collection_date'];
+                    $paymentMethod = $payment['payment_method'];
+                    $invoiceNo = $payment['invoice_no'];
+                }
+            }
+
+            // Fallback: If no payment found for selected month or no month selected, get the absolute last payment
+            if ($received == 0) {
+                $pStmt = $this->db->prepare("
+                    SELECT amount, collection_date, payment_method, invoice_no 
+                    FROM collections 
+                    WHERE customer_id = ? 
+                    ORDER BY id DESC LIMIT 1
+                ");
+                $pStmt->execute([$cust['id']]);
+                $payment = $pStmt->fetch(PDO::FETCH_ASSOC);
+
+                if ($payment) {
+                    $received = floatval($payment['amount']);
+                    $paymentDate = $payment['collection_date'];
+                    $paymentMethod = $payment['payment_method'];
+                    $invoiceNo = $payment['invoice_no'];
+                }
+            }
+
+            // Store inside the customer array
+            $cust['received_amount'] = $received;
+            $cust['payment_date'] = $paymentDate;
+            $cust['payment_method'] = $paymentMethod;
+            $cust['payment_invoice_no'] = $invoiceNo;
+        }
+
         $printSettings = $this->db->query("SELECT * FROM print_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
 
         $this->view('receipt/print', [
             'customers' => $customers,
             'settings' => $printSettings,
             'billingMonth' => $month
+        ]);
+    }
+
+    /**
+     * Print Individual Money Receipt for a specific collection transaction
+     */
+    public function collection()
+    {
+        $id = $_GET['id'] ?? null;
+        if (!$id) {
+            die("Collection transaction ID required.");
+        }
+
+        // Query collection and customer details together
+        $query = "SELECT col.id as transaction_id, col.amount, col.payment_method, col.collection_date, col.invoice_no, 
+                         col.next_expire_date, col.note, col.collected_by,
+                         cust.id as customer_id, cust.full_name, cust.mobile_no, cust.status, cust.expire_date,
+                         cust.payment_id, cust.pppoe_name, cust.monthly_rent, cust.due_amount, cust.connection_date,
+                         cust.house_no, cust.area, cust.thana, cust.district,
+                         emp.name as collected_by_name,
+                         ip.prefix_code
+                  FROM collections col 
+                  JOIN customers cust ON col.customer_id = cust.id 
+                  LEFT JOIN employees emp ON col.collected_by = emp.id
+                  LEFT JOIN id_prefixes ip ON cust.prefix_id = ip.id
+                  WHERE col.id = ?";
+        $stmt = $this->db->prepare($query);
+        $stmt->execute([$id]);
+        $col = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$col) {
+            die("Collection transaction not found.");
+        }
+
+        // Fetch print settings
+        $printSettings = $this->db->query("SELECT * FROM print_settings WHERE id = 1")->fetch(PDO::FETCH_ASSOC);
+
+        // Render view
+        $this->view('receipt/print_collection', [
+            'col' => $col,
+            'settings' => $printSettings
         ]);
     }
 }

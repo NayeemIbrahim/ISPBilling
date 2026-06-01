@@ -86,18 +86,48 @@ foreach ($customers as $cust):
                 <div style="font-size:9.5px; margin-top:3px;">Connection Date : <?= $cust['connection_date'] ? date('d-m-Y', strtotime($cust['connection_date'])) : 'N/A' ?></div>
 
                 <div class="inv-body">
-                    <div></div>
+                    <div style="font-size: 10px; line-height: 1.6; color: #475569;">
+                        <?php if (isset($cust['received_amount']) && $cust['received_amount'] > 0): ?>
+                            <div style="padding: 8px 12px; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px;">
+                                <div style="font-size: 11px; font-weight: 700; color: #065f46; text-transform: uppercase; letter-spacing: 0.5px;">Payment Received</div>
+                                <div style="font-size: 14px; font-weight: 800; color: #047857; margin-top: 2px;">
+                                    <?= number_format($cust['received_amount'], 2) ?> TK
+                                </div>
+                                <div style="font-size: 9px; margin-top: 4px; color: #065f46; border-top: 1px dashed rgba(6, 95, 70, 0.2); padding-top: 4px; line-height: 1.4;">
+                                    Method: <strong><?= htmlspecialchars($cust['payment_method']) ?></strong>
+                                    <?php if (!empty($cust['payment_invoice_no'])): ?>
+                                        <br>TrxID: <strong><?= htmlspecialchars($cust['payment_invoice_no']) ?></strong>
+                                    <?php endif; ?>
+                                    <?php if (!empty($cust['payment_date'])): ?>
+                                        <br>Date: <strong><?= date('d-M-Y h:i A', strtotime($cust['payment_date'])) ?></strong>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php else: ?>
+                            <div style="padding: 8px 12px; background: #fffbeb; border: 1px solid #fef3c7; border-radius: 6px;">
+                                <div style="font-size: 10px; font-weight: 700; color: #b45309; text-transform: uppercase;">No Payment Received</div>
+                                <div style="font-size: 8.5px; margin-top: 2px; color: #b45309;">
+                                    No payment logged for the selected period. Showing current outstanding.
+                                </div>
+                            </div>
+                        <?php endif; ?>
+                    </div>
                     <div class="inv-totals">
                         <table>
                             <tr><td>Monthly Rent :</td><td><?= number_format($cust['monthly_rent'], 2) ?></td></tr>
-                            <tr><td>Additional :</td><td>0.00</td></tr>
-                            <tr><td>Discount :</td><td>0.00</td></tr>
-                            <tr><td>Advance :</td><td>0.00</td></tr>
-                            <tr class="row-sep"><td>SUM :</td><td><?= number_format($cust['monthly_rent'], 2) ?></td></tr>
+                            <tr><td>Additional :</td><td><?= number_format($cust['additional_charge'] ?? 0, 2) ?></td></tr>
+                            <tr><td>Discount :</td><td><?= number_format($cust['discount'] ?? 0, 2) ?></td></tr>
+                            <tr class="row-sep"><td>SUM :</td><td><?= number_format($cust['monthly_rent'] + ($cust['additional_charge'] ?? 0) - ($cust['discount'] ?? 0), 2) ?></td></tr>
                             <tr><td>Vat (0%) :</td><td>0.00</td></tr>
-                            <tr class="row-sep"><td>SUM with vat :</td><td><?= number_format($cust['monthly_rent'], 2) ?></td></tr>
-                            <tr><td>Previous DUE :</td><td><?= number_format($cust['due_amount'], 2) ?></td></tr>
-                            <tr class="row-sep"><td>Total :</td><td><?= number_format($cust['monthly_rent'] + $cust['due_amount'], 2) ?></td></tr>
+                            
+                            <?php 
+                            $receivedAmount = floatval($cust['received_amount'] ?? 0);
+                            $beforePayDue = floatval($cust['due_amount']) + $receivedAmount;
+                            ?>
+                            <tr><td>Previous Outstanding :</td><td><?= number_format($beforePayDue, 2) ?></td></tr>
+                            <tr class="row-sep"><td>Total Outstanding :</td><td><?= number_format($beforePayDue, 2) ?></td></tr>
+                            <tr><td style="color:#059669; font-weight:700;">Amount Paid :</td><td style="color:#059669; font-weight:700;">- <?= number_format($receivedAmount, 2) ?></td></tr>
+                            <tr class="row-sep"><td>Current Remaining Due :</td><td><?= number_format($cust['due_amount'], 2) ?></td></tr>
                         </table>
                     </div>
                 </div>

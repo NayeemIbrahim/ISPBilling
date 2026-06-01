@@ -82,27 +82,27 @@ $path = $data['path'] ?? '';
                     <a href="<?= url('complain') ?>">Complain Setup</a>
                     <a href="<?= url('employee') ?>">Employee Setup</a>
                     <a href="<?= url('setup/package') ?>">Package Setup</a>
-                    <a href="#">Payment Settings Setup</a>
-                    <a href="#">SMS Setup</a>
+                    <a href="<?= url('setup/payment-settings') ?>">Payment Settings Setup</a>
+                    <a href="<?= url('sms') ?>">SMS Setup</a>
                     <a href="<?= url('prefix') ?>">ID Prefix Setup</a>
                 </div>
             </li>
 
             <li class="dropdown">
-                <a href="#">Mikrotik</a>
+                <a href="#" class="<?= strpos($path, '/mikrotik') !== false ? 'active' : '' ?>">Mikrotik</a>
                 <div class="dropdown-content">
-                    <a href="#">Router Config</a>
+                    <a href="<?= url('mikrotik') ?>">Mikrotik Sync</a>
                     <a href="#">User List</a>
                 </div>
             </li>
 
             <li class="dropdown">
-                <a href="#">Reseller</a>
+                <a href="#" class="<?= strpos($path, '/reseller') !== false ? 'active' : '' ?>">Reseller</a>
                 <div class="dropdown-content">
-                    <a href="#">Reseller List</a>
-                    <a href="#">Reseller Package</a>
-                    <a href="#">Reseller Balance</a>
-                    <a href="#">Reseller Balance Summary</a>
+                    <a href="<?= url('reseller') ?>">Reseller List</a>
+                    <a href="<?= url('reseller/package') ?>">Reseller Package</a>
+                    <a href="<?= url('reseller/balance') ?>">Reseller Balance</a>
+                    <a href="<?= url('reseller/balance-summary') ?>">Reseller Balance Summary</a>
                 </div>
             </li>
 
