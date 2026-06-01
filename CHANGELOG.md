@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-06-01
+## [1.3.1] - 2026-06-01
 ### Added
 - **MFS Payment Settings Setup**: Integrated a beautiful setup dashboard under `Setup > Payment Settings Setup` to configure bKash, Nagad, and Rocket receive numbers and toggles.
 - **Automated Webhook Callback (`/setup/mfs-callback`)**: Added an automated callback endpoint that securely processes incoming transaction payloads (raw JSON or POST), resolves duplicate transactions, and reactivates accounts.
