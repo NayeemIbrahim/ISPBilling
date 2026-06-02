@@ -7,9 +7,38 @@ use PDO;
 
 class MikrotikController extends Controller
 {
+    protected $db;
+
+    public function __construct()
+    {
+        $this->db = (new Database())->getConnection();
+        $this->ensureTablesExist();
+    }
+
+    private function ensureTablesExist()
+    {
+        try {
+            $this->db->exec("CREATE TABLE IF NOT EXISTS `mikrotiks` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `name` VARCHAR(255) NOT NULL,
+                `ip_address` VARCHAR(100) NOT NULL,
+                `username` VARCHAR(100) NOT NULL,
+                `password` VARCHAR(255) DEFAULT NULL,
+                `ssh_port` INT DEFAULT 22,
+                `api_port` INT DEFAULT 8728,
+                `status` ENUM('connected', 'disconnected') DEFAULT 'disconnected',
+                `auto_backup` TINYINT(1) DEFAULT 0,
+                `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )");
+        } catch (\Exception $e) {
+            // Silently fail or log
+        }
+    }
+
     public function index()
     {
-        $db = (new Database())->getConnection();
+        $db = $this->db;
         
         // Fetch all Mikrotiks
         $stmt = $db->query("SELECT * FROM mikrotiks ORDER BY created_at DESC");
@@ -50,7 +79,7 @@ class MikrotikController extends Controller
     public function store()
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $db = (new Database())->getConnection();
+            $db = $this->db;
             
             $name = $_POST['name'] ?? '';
             $ip_address = $_POST['ip_address'] ?? '';
@@ -69,7 +98,7 @@ class MikrotikController extends Controller
     public function update($id)
     {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-            $db = (new Database())->getConnection();
+            $db = $this->db;
             
             $name = $_POST['name'] ?? '';
             $ip_address = $_POST['ip_address'] ?? '';
@@ -87,7 +116,7 @@ class MikrotikController extends Controller
 
     public function delete($id)
     {
-        $db = (new Database())->getConnection();
+        $db = $this->db;
         $stmt = $db->prepare("DELETE FROM mikrotiks WHERE id = ?");
         $stmt->execute([$id]);
         
@@ -97,7 +126,7 @@ class MikrotikController extends Controller
 
     public function toggleStatus($id)
     {
-        $db = (new Database())->getConnection();
+        $db = $this->db;
         $stmt = $db->prepare("SELECT status FROM mikrotiks WHERE id = ?");
         $stmt->execute([$id]);
         $currentStatus = $stmt->fetchColumn();
@@ -113,7 +142,7 @@ class MikrotikController extends Controller
     
     public function toggleBackup($id)
     {
-        $db = (new Database())->getConnection();
+        $db = $this->db;
         $stmt = $db->prepare("SELECT auto_backup FROM mikrotiks WHERE id = ?");
         $stmt->execute([$id]);
         $currentBackup = $stmt->fetchColumn();

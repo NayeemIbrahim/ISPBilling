@@ -10,6 +10,29 @@ class ReceiptController extends Controller
     public function __construct()
     {
         $this->db = (new Database())->getConnection();
+        $this->ensureTablesExist();
+    }
+
+    private function ensureTablesExist()
+    {
+        try {
+            $this->db->exec("CREATE TABLE IF NOT EXISTS `print_settings` (
+                `id` INT AUTO_INCREMENT PRIMARY KEY,
+                `header_style` VARCHAR(50) DEFAULT 'with_header',
+                `layout` VARCHAR(50) DEFAULT '3',
+                `receipt_text` VARCHAR(50) DEFAULT 'Thank you for connecting with us.',
+                `signature_path` VARCHAR(255) DEFAULT NULL,
+                `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )");
+
+            // Seed default if empty
+            $count = $this->db->query("SELECT COUNT(*) FROM `print_settings`")->fetchColumn();
+            if ($count == 0) {
+                $this->db->exec("INSERT INTO `print_settings` (header_style, layout, receipt_text) VALUES ('with_header', '3', 'Thank you for connecting with us.')");
+            }
+        } catch (\Exception $e) {
+            // Silently fail or log
+        }
     }
 
     /**
