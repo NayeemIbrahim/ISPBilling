@@ -154,6 +154,12 @@ class CustomerController extends Controller
             $params = array_merge($params, array_values($statuses));
         }
 
+        $resellerId = $_GET['reseller_id'] ?? '';
+        if ($resellerId) {
+            $where[] = "c.reseller_id = ?";
+            $params[] = $resellerId;
+        }
+
         $whereSql = !empty($where) ? "WHERE " . implode(" AND ", $where) : "";
 
         // 4. Get Total Count
