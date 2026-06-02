@@ -1,9 +1,4 @@
 <?php
-// Enable Error Reporting for Debugging
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 // Autoloader
 spl_autoload_register(function ($class) {
     // Convert namespace to full file path
